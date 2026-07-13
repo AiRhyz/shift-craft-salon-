@@ -21,6 +21,14 @@ export interface StaffConfig {
   hourly_wage: number; // 時給(円)
   avail_patterns: string[] | null; // null = 全パターン可
   unavailable_weekdays: number[]; // 勤務不可曜日 0=月..6=日
+  help_ok?: boolean; // 他店舗へのヘルプ勤務可（多店舗管理用）
+}
+
+export interface DemandForecast {
+  wd_day: number; // 平日日中の1時間あたり予約数
+  wd_eve: number; // 平日夕方(17時以降)の1時間あたり予約数
+  we: number; // 土日の1時間あたり予約数
+  cap: number; // スタイリスト1人が1時間に対応できる件数
 }
 
 export interface DayRequirements {
@@ -51,6 +59,7 @@ export interface PlanConfig {
     time_bands: TimeBand[]; // 時間帯別の追加下限(例: 18-21時は2名)
   };
   webhook_url: string; // 確定通知の送信先(Slack/Discord Webhook等。空=通知しない)
+  demand: DemandForecast | null; // 需要予測(予約見込み)。必要人数の提案に使用
   off_requests: [string, string][]; // [staffId, date]
   want_requests: [string, string, string][]; // [staffId, date, patternId]
   pairs: Record<PairKind, [string, string][]>;
@@ -198,6 +207,7 @@ export function defaultConfig(): PlanConfig {
       time_bands: [],
     },
     webhook_url: "",
+    demand: null,
     off_requests: offRequests,
     want_requests: [],
     pairs: {
@@ -243,16 +253,87 @@ export function buildSolveRequest(config: PlanConfig): Record<string, unknown> {
   };
 }
 
-// ---------------------------------------------------------------- 永続化
+// ---------------------------------------------------------------- 永続化（多店舗対応）
 
-const STORAGE_KEY = "shift-craft-salon:plan-config:v1";
+const STORAGE_KEY = "shift-craft-salon:plan-config:v1"; // 旧: 単一店舗
+const STORES_KEY = "shift-craft-salon:stores:v1";
+
+interface StoresState {
+  active: string;
+  stores: Record<string, { name: string; config: PlanConfig }>;
+}
+
+function loadStoresRaw(): StoresState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORES_KEY);
+    if (raw) return JSON.parse(raw) as StoresState;
+    // 旧単一店舗データからの移行
+    const legacy = window.localStorage.getItem(STORAGE_KEY);
+    if (legacy) {
+      const st: StoresState = {
+        active: "main",
+        stores: { main: { name: "本店", config: JSON.parse(legacy) } },
+      };
+      window.localStorage.setItem(STORES_KEY, JSON.stringify(st));
+      return st;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoresRaw(st: StoresState): void {
+  try {
+    window.localStorage.setItem(STORES_KEY, JSON.stringify(st));
+  } catch {
+    // 無視
+  }
+}
+
+export function getActiveStoreId(): string {
+  return loadStoresRaw()?.active ?? "main";
+}
+
+export function listStores(): { id: string; name: string }[] {
+  const st = loadStoresRaw();
+  if (!st) return [{ id: "main", name: "本店" }];
+  return Object.entries(st.stores).map(([id, s]) => ({ id, name: s.name }));
+}
+
+export function getStoreConfig(id: string): PlanConfig | null {
+  const st = loadStoresRaw();
+  return st?.stores[id]?.config ?? null;
+}
+
+export function addStore(name: string): string {
+  const st = loadStoresRaw() ?? {
+    active: "main",
+    stores: { main: { name: "本店", config: defaultConfig() } },
+  };
+  const id = `st${Date.now() % 1000000}`;
+  st.stores[id] = { name, config: defaultConfig() };
+  st.active = id;
+  saveStoresRaw(st);
+  return id;
+}
+
+export function switchStore(id: string): void {
+  const st = loadStoresRaw();
+  if (st && st.stores[id]) {
+    st.active = id;
+    saveStoresRaw(st);
+  }
+}
 
 export function loadConfig(): PlanConfig | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const cfg = JSON.parse(raw) as PlanConfig;
+    const st = loadStoresRaw();
+    if (!st) return null;
+    const cfg = st.stores[st.active]?.config;
+    if (!cfg) return null;
     // 旧バージョン保存データのマイグレーション
     // 期間は月単位（1日〜月末）に正規化
     if (cfg.start_date) {
@@ -280,6 +361,7 @@ export function loadConfig(): PlanConfig | null {
       time_bands: cfg.requirements?.time_bands ?? [],
     };
     cfg.webhook_url = cfg.webhook_url ?? "";
+    cfg.demand = cfg.demand ?? null;
     cfg.staff = (cfg.staff ?? []).map((s) => ({
       ...s,
       hourly_wage: s.hourly_wage ?? 0,
@@ -296,6 +378,7 @@ export function loadConfig(): PlanConfig | null {
       return { ...p, balance: p.balance ?? p.is_late ?? false };
     });
     if (cfg.patterns.length === 0) cfg.patterns = DEFAULT_PATTERNS;
+    cfg.staff = cfg.staff.map((s) => ({ ...s, help_ok: s.help_ok ?? false }));
     return cfg;
   } catch {
     return null;
@@ -304,9 +387,10 @@ export function loadConfig(): PlanConfig | null {
 
 export function saveConfig(config: PlanConfig): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  } catch {
-    // 保存失敗は無視
-  }
+  const st = loadStoresRaw() ?? {
+    active: "main",
+    stores: { main: { name: "本店", config } },
+  };
+  st.stores[st.active] = { name: st.stores[st.active]?.name ?? "本店", config };
+  saveStoresRaw(st);
 }

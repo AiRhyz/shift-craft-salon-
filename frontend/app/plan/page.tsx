@@ -11,13 +11,18 @@ import { ShiftGrid } from "@/components/ShiftGrid";
 import { loadConfirmed, saveConfirmed } from "@/lib/confirmed";
 import type { SwapRequest } from "@/lib/swaps";
 import { loadSwaps, setSwapStatus } from "@/lib/swaps";
-import { buildCsv } from "@/lib/exportCsv";
+import { buildCsv, buildPayrollCsv } from "@/lib/exportCsv";
 import type { PlanConfig } from "@/lib/planConfig";
 import {
+  addStore,
   buildSolveRequest,
   defaultConfig,
+  getActiveStoreId,
+  getStoreConfig,
+  listStores,
   loadConfig,
   saveConfig,
+  switchStore,
 } from "@/lib/planConfig";
 import type { Schedule } from "@/lib/types";
 import { recomputeAndValidate } from "@/lib/validate";
@@ -42,6 +47,8 @@ export default function PlanPage() {
   const [violations, setViolations] = useState<string[]>([]);
   const [selDay, setSelDay] = useState<string | null>(null);
   const [swaps, setSwaps] = useState<SwapRequest[]>([]);
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
+  const [activeStore, setActiveStore] = useState("main");
   const hydrated = useRef(false);
 
   // 初回に localStorage から復元
@@ -49,6 +56,8 @@ export default function PlanPage() {
     const saved = loadConfig();
     if (saved) setConfig(saved);
     setSwaps(loadSwaps());
+    setStores(listStores());
+    setActiveStore(getActiveStoreId());
     hydrated.current = true;
   }, []);
 
@@ -78,6 +87,34 @@ export default function PlanPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const changeStore = (id: string) => {
+    if (id === "__add__") {
+      const name = window.prompt("新しい店舗名を入力してください", "2号店");
+      if (!name) return;
+      const newId = addStore(name);
+      setStores(listStores());
+      setActiveStore(newId);
+      setConfig(loadConfig() ?? defaultConfig());
+      setSchedule(null);
+      return;
+    }
+    switchStore(id);
+    setActiveStore(id);
+    setConfig(loadConfig() ?? defaultConfig());
+    setSchedule(null);
+    setViolations([]);
+    setNotice(null);
+  };
+
+  const exportPayroll = () => {
+    if (!schedule) return;
+    const csv = buildPayrollCsv(schedule, config);
+    downloadBlob(
+      new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }),
+      "payroll.csv",
+    );
   };
 
   const reset = () => {
@@ -202,7 +239,22 @@ export default function PlanPage() {
 
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">シフト作成</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900">シフト作成</h1>
+            <select
+              value={activeStore}
+              onChange={(e) => changeStore(e.target.value)}
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700"
+              title="店舗の切替・追加（多店舗管理）"
+            >
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+              <option value="__add__">＋ 店舗を追加...</option>
+            </select>
+          </div>
           <p className="mt-0.5 text-sm text-slate-500">
             条件を設定して「シフト生成」を押すと、CP-SAT
             ソルバーが制約を満たす最適シフトを作成します
@@ -323,6 +375,13 @@ export default function PlanPage() {
                   >
                     ⬇ Excel出力
                   </button>
+                  <button
+                    onClick={exportPayroll}
+                    title="給与計算ソフト取込用のCSV（氏名・出勤日数・労働時間・概算支給額）"
+                    className="rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                  >
+                    ⬇ 給与CSV
+                  </button>
                   {!isSample && (
                     <button
                       onClick={confirm}
@@ -369,6 +428,45 @@ export default function PlanPage() {
               )}
             </>
           )}
+        </section>
+      )}
+
+      {/* 多店舗ヘルプ依頼（不足日があるとき、他店舗のヘルプ可スタッフを提示） */}
+      {schedule && (schedule.meta.shortage_total ?? 0) > 0 && (
+        <section className="mb-6 rounded-lg border border-violet-200 bg-violet-50/50 p-4">
+          <h2 className="text-sm font-semibold text-slate-700">
+            ヘルプ依頼リスト（人員不足日）
+          </h2>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-slate-600">
+            {schedule.days
+              .filter((d) => (d.shortage ?? 0) > 0)
+              .map((d) => (
+                <li key={d.date}>
+                  {d.date.slice(5).replace("-", "/")}：
+                  {(d.shortage_detail ?? []).join("、")}
+                </li>
+              ))}
+          </ul>
+          {(() => {
+            const helpers = stores
+              .filter((s) => s.id !== activeStore)
+              .flatMap((s) => {
+                const c = getStoreConfig(s.id);
+                return (c?.staff ?? [])
+                  .filter((x) => x.help_ok)
+                  .map((x) => `${x.name}（${s.name}）`);
+              });
+            return helpers.length > 0 ? (
+              <p className="mt-2 text-sm text-slate-600">
+                他店舗のヘルプ候補:{" "}
+                <span className="font-medium">{helpers.join("、")}</span>
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-slate-400">
+                他店舗に「他店ヘルプ可」のスタッフが登録されると、ここに候補が表示されます（スタッフマスタで設定）
+              </p>
+            );
+          })()}
         </section>
       )}
 

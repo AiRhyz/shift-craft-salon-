@@ -556,6 +556,17 @@ function StaffEditor({ config, onChange }: Props) {
                   {w}
                 </label>
               ))}
+              <label
+                className="ml-4 inline-flex items-center gap-1 text-xs text-slate-600"
+                title="多店舗運用時、他店舗の人員不足日にヘルプ候補として表示されます"
+              >
+                <input
+                  type="checkbox"
+                  checked={s.help_ok ?? false}
+                  onChange={(e) => update(i, { help_ok: e.target.checked })}
+                />
+                他店ヘルプ可
+              </label>
               <button
                 onClick={() => removeStaff(i)}
                 className="ml-auto text-xs text-rose-500 hover:underline"
@@ -1093,6 +1104,85 @@ function WishEditor({ config, onChange }: Props) {
 
 // ---------------------------------------------------------------- 全体
 
+function DemandEditor({ config, onChange }: Props) {
+  const d = config.demand ?? { wd_day: 2, wd_eve: 4, we: 5, cap: 2 };
+  const set = (patch: Partial<typeof d>) =>
+    onChange({ ...config, demand: { ...d, ...patch } });
+
+  const sug = {
+    base: Math.max(1, Math.ceil(d.wd_day / Math.max(1, d.cap))),
+    eve: Math.max(1, Math.ceil(d.wd_eve / Math.max(1, d.cap))),
+    we: Math.max(1, Math.ceil(d.we / Math.max(1, d.cap))),
+  };
+
+  const apply = () => {
+    const req = config.requirements;
+    const weekendOverride = {
+      by_rank: { ...req.by_rank, stylist: sug.we },
+      by_skill: { ...req.by_skill },
+    };
+    onChange({
+      ...config,
+      demand: d,
+      requirements: {
+        ...req,
+        by_rank: { ...req.by_rank, stylist: sug.base },
+        weekday_overrides: {
+          ...req.weekday_overrides,
+          5: weekendOverride,
+          6: weekendOverride,
+        },
+        time_bands: [
+          ...(req.time_bands ?? []).filter((tb) => tb.start !== "17:00"),
+          { start: "17:00", end: config.store_close, min_staff: sug.eve },
+        ],
+      },
+    });
+  };
+
+  return (
+    <Section
+      title="需要予測（予約見込みから必要人数を提案）"
+      hint="時間あたりの予約見込みとスタイリストの対応能力から、必要人数・繁忙帯増員を自動計算します（v3: 予約システム連動の手前段階として手入力）"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <label className="text-[11px] text-slate-500">平日日中 予約/時</label>
+          <input type="number" min={0} step={0.5} className={numCls} value={d.wd_day}
+            onChange={(e) => set({ wd_day: Number(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label className="text-[11px] text-slate-500">平日夕方(17時〜) 予約/時</label>
+          <input type="number" min={0} step={0.5} className={numCls} value={d.wd_eve}
+            onChange={(e) => set({ wd_eve: Number(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label className="text-[11px] text-slate-500">土日 予約/時</label>
+          <input type="number" min={0} step={0.5} className={numCls} value={d.we}
+            onChange={(e) => set({ we: Number(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label className="text-[11px] text-slate-500">1人が対応できる件数/時</label>
+          <input type="number" min={1} step={0.5} className={numCls} value={d.cap}
+            onChange={(e) => set({ cap: Number(e.target.value) || 1 })} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        <span>
+          提案: 平日スタイリスト <b>{sug.base}名</b> ／ 平日17時以降{" "}
+          <b>{sug.eve}名</b> ／ 土日 <b>{sug.we}名</b>
+        </span>
+        <button
+          onClick={apply}
+          className="ml-auto rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
+        >
+          必要人数へ反映
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 function NotifyEditor({ config, onChange }: Props) {
   return (
     <Section
@@ -1116,6 +1206,7 @@ export function ConfigEditor({ config, onChange }: Props) {
       <PatternsEditor config={config} onChange={onChange} />
       <StaffEditor config={config} onChange={onChange} />
       <RequirementsEditor config={config} onChange={onChange} />
+      <DemandEditor config={config} onChange={onChange} />
       <PairsEditor config={config} onChange={onChange} />
       <WishEditor config={config} onChange={onChange} />
       <NotifyEditor config={config} onChange={onChange} />

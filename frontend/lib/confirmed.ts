@@ -1,9 +1,11 @@
 // 確定シフトの保存・読込（v1 はブラウザ localStorage、v2 で Supabase に置換）。
 // 「シフト作成」で確定した Schedule を「シフト表」タブが表示する。
 
+import { getActiveStoreId } from "./planConfig";
 import type { Schedule } from "./types";
 
-const KEY = "shift-craft-salon:confirmed-schedule:v1";
+const LEGACY_KEY = "shift-craft-salon:confirmed-schedule:v1";
+const KEY = () => `shift-craft-salon:confirmed-schedule:v1:${getActiveStoreId()}`;
 
 export interface ConfirmedSchedule {
   schedule: Schedule;
@@ -13,7 +15,11 @@ export interface ConfirmedSchedule {
 export function loadConfirmed(): ConfirmedSchedule | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw =
+      window.localStorage.getItem(KEY()) ??
+      (getActiveStoreId() === "main"
+        ? window.localStorage.getItem(LEGACY_KEY)
+        : null);
     return raw ? (JSON.parse(raw) as ConfirmedSchedule) : null;
   } catch {
     return null;
@@ -26,7 +32,7 @@ export function saveConfirmed(schedule: Schedule): ConfirmedSchedule {
     confirmed_at: new Date().toISOString(),
   };
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(entry));
+    window.localStorage.setItem(KEY(), JSON.stringify(entry));
   } catch {
     // 保存失敗（容量・プライベートモード等）は無視
   }
@@ -35,7 +41,8 @@ export function saveConfirmed(schedule: Schedule): ConfirmedSchedule {
 
 export function clearConfirmed(): void {
   try {
-    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem(KEY());
+    window.localStorage.removeItem(LEGACY_KEY);
   } catch {
     // 無視
   }
