@@ -6,6 +6,7 @@
 import { ConfigEditor } from "@/components/ConfigEditor";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
+import { saveConfirmed } from "@/lib/confirmed";
 import { buildCsv } from "@/lib/exportCsv";
 import type { PlanConfig } from "@/lib/planConfig";
 import { defaultConfig, loadConfig, saveConfig } from "@/lib/planConfig";
@@ -67,6 +68,15 @@ export default function PlanPage() {
     setSchedule(null);
     setError(null);
     setNotice(null);
+  };
+
+  // 生成結果を確定し「シフト表」タブに反映する
+  const confirm = () => {
+    if (!schedule) return;
+    saveConfirmed(schedule);
+    setNotice(
+      "✓ 確定しました。「シフト表」タブにこのシフトが表示されます（この端末のブラウザ内保存。共有・通知機能は v2 で対応予定）",
+    );
   };
 
   // Excel 出力。solver 未接続時は CSV にフォールバック
@@ -210,12 +220,22 @@ export default function PlanPage() {
                     {schedule.meta.estimated_cost_yen.toLocaleString()}
                   </span>
                 )}
-                <button
-                  onClick={exportFile}
-                  className="ml-auto rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                >
-                  ⬇ Excel出力
-                </button>
+                <span className="ml-auto flex gap-2">
+                  <button
+                    onClick={exportFile}
+                    className="rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                  >
+                    ⬇ Excel出力
+                  </button>
+                  {!isSample && (
+                    <button
+                      onClick={confirm}
+                      className="rounded-md bg-brand px-3 py-1 text-xs font-semibold text-white hover:bg-brand-dark"
+                    >
+                      この内容で確定
+                    </button>
+                  )}
+                </span>
               </div>
               <ShiftGrid schedule={schedule} />
             </>
