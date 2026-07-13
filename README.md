@@ -62,6 +62,7 @@ shift-craft-salon/
 - ✅ 要件定義書 v1.0
 - ✅ 制約仕様書 v0.1（ハード/ソフト制約の数式化）
 - ✅ solver PoC（CP-SAT で 5名×14日を 0.02 秒未満で最適求解、実現性確認済み）
-- ✅ frontend MVP（Next.js、シフト表表示、Vercel デプロイ可能）
-- ⬜ solver の FastAPI 化・Cloud Run デプロイ、フロントとの接続
-- ⬜ マスタ管理・希望収集フォームの実装
+- ✅ frontend MVP（Next.js、シフト表表示、Vercel デプロイ済み）
+- ✅ solver の FastAPI 化（`/solve`・`/health`・`/solve/demo`、Dockerfile で Cloud Run 対応）
+- ⬜ solver の Cloud Run デプロイ＋フロントの `SOLVER_API_URL` 接続
+- ⬜ マスタ管理・希望収集フォームの実装（現状は入力データ固定）

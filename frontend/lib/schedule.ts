@@ -11,16 +11,22 @@ import type { Schedule } from "./types";
 export async function getSchedule(): Promise<Schedule> {
   const apiUrl = process.env.SOLVER_API_URL;
   if (apiUrl) {
-    const res = await fetch(`${apiUrl.replace(/\/$/, "")}/solve`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}), // v1: マスタ/希望データを送る
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      throw new Error(`solver API error: ${res.status}`);
+    try {
+      const res = await fetch(`${apiUrl.replace(/\/$/, "")}/solve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // v1: マスタ/希望データを送る
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        throw new Error(`solver API error: ${res.status}`);
+      }
+      return (await res.json()) as Schedule;
+    } catch (err) {
+      // solver 障害時も画面が落ちないよう同梱サンプルにフォールバック
+      console.error("[getSchedule] solver 呼び出し失敗、サンプルにフォールバック:", err);
+      return sample as Schedule;
     }
-    return (await res.json()) as Schedule;
   }
   return sample as Schedule;
 }

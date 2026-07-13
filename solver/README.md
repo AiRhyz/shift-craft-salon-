@@ -10,7 +10,45 @@ Python FastAPI ＋ Google OR-Tools（CP-SAT）による最適化API。シフト�
 
 ## 状態
 
-制約仕様書 v0.1（[../docs/constraint-spec.md](../docs/constraint-spec.md)）を策定し、CP-SAT による実現性を PoC で確認済み。FastAPI 化は未着手。
+制約仕様書 v0.1（[../docs/constraint-spec.md](../docs/constraint-spec.md)）に基づき、**FastAPI + OR-Tools の最適化API（`app/`）を実装済み**。`poc/` は実現性検証用に残置。
+
+## API（`app/`）
+
+FastAPI アプリ。制約仕様書の H0–H6・S1/S4/S5/S6 を入力駆動で実装。
+
+### エンドポイント
+
+| メソッド | パス | 用途 |
+| :---- | :---- | :---- |
+| GET | `/health` | ヘルスチェック（Cloud Run 用） |
+| POST | `/solve` | シフト求解。ボディが空 or `staff`/`patterns` 未指定ならデモ既定で解く |
+| GET | `/solve/demo` | デモ既定（5名×14日）を解いて返す |
+| GET | `/docs` | 自動生成の OpenAPI ドキュメント |
+
+レスポンスは frontend の `lib/types.ts`（`Schedule`）と一致。
+
+### ローカル起動
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8080
+# 動作確認
+curl -X POST localhost:8080/solve -H 'Content-Type: application/json' -d '{}'
+```
+
+### Docker / Cloud Run
+
+```bash
+docker build -t shift-craft-solver .
+docker run -p 8080:8080 shift-craft-solver
+# Cloud Run へは gcloud run deploy 等でデプロイ。$PORT を尊重する。
+```
+
+デプロイ後、その URL を frontend の環境変数 `SOLVER_API_URL` に設定するとフロントが実ソルバーに接続する。CORS は `ALLOWED_ORIGINS`（カンマ区切り）で Vercel ドメインに限定すること。
+
+### 入力スキーマ（POST /solve）
+
+`app/models.py` の `SolveRequest`。主なフィールド：`start_date`/`num_days`、`patterns`、`staff`（rank・skills・上限時間・公休日数・`avail_patterns`）、`requirements`（`by_rank`/`by_skill`）、`off_requests`、`want_requests`、`pairs`（`ng_soft`/`ng_hard`/`recommend`）、`weights`、`max_consecutive`。
 
 ### PoC（実現性検証）
 
