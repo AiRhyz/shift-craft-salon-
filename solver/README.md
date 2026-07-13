@@ -10,4 +10,15 @@ Python FastAPI ＋ Google OR-Tools（CP-SAT）による最適化API。シフト�
 
 ## 状態
 
-未着手（スキャフォールド予定）。制約の定式化は制約仕様書（ドメイン設計エージェント成果物）に基づく。要件は [../docs/requirements-v1.0.md](../docs/requirements-v1.0.md) を参照。
+制約仕様書 v0.1（[../docs/constraint-spec.md](../docs/constraint-spec.md)）を策定し、CP-SAT による実現性を PoC で確認済み。FastAPI 化は未着手。
+
+### PoC（実現性検証）
+
+`poc/` に、制約仕様書の H0–H6・S1/S4/S5/S6 を最小実装した検証コードがある。5名×14日を 0.02 秒未満で最適求解できることを確認済み。
+
+```bash
+pip install -r requirements.txt
+python -m poc.run_poc
+```
+
+詳細は [poc/README.md](poc/README.md) を参照。要件全体は [../docs/requirements-v1.0.md](../docs/requirements-v1.0.md)、制約の定式化は [../docs/constraint-spec.md](../docs/constraint-spec.md) を参照。
