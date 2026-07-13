@@ -1,0 +1,251 @@
+{
+  "meta": {
+    "source": "solver/poc (constraint-spec v0.1)",
+    "status": "OPTIMAL",
+    "objective": 51.0,
+    "solve_time_s": 0.0317,
+    "ng_soft_violations": 0,
+    "recommend_together": 9,
+    "want_met": 5
+  },
+  "patterns": [
+    {
+      "id": "early",
+      "label": "早番 9:00-18:00",
+      "hours": 8.0,
+      "is_late": false
+    },
+    {
+      "id": "late",
+      "label": "遅番 12:00-21:00",
+      "hours": 8.0,
+      "is_late": true
+    },
+    {
+      "id": "full",
+      "label": "通し 9:00-21:00",
+      "hours": 11.0,
+      "is_late": false
+    },
+    {
+      "id": "short",
+      "label": "時短 10:00-15:00",
+      "hours": 5.0,
+      "is_late": false
+    }
+  ],
+  "days": [
+    {
+      "date": "2026-08-01",
+      "weekday": 5,
+      "is_weekend": true
+    },
+    {
+      "date": "2026-08-02",
+      "weekday": 6,
+      "is_weekend": true
+    },
+    {
+      "date": "2026-08-03",
+      "weekday": 0,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-04",
+      "weekday": 1,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-05",
+      "weekday": 2,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-06",
+      "weekday": 3,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-07",
+      "weekday": 4,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-08",
+      "weekday": 5,
+      "is_weekend": true
+    },
+    {
+      "date": "2026-08-09",
+      "weekday": 6,
+      "is_weekend": true
+    },
+    {
+      "date": "2026-08-10",
+      "weekday": 0,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-11",
+      "weekday": 1,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-12",
+      "weekday": 2,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-13",
+      "weekday": 3,
+      "is_weekend": false
+    },
+    {
+      "date": "2026-08-14",
+      "weekday": 4,
+      "is_weekend": false
+    }
+  ],
+  "staff": [
+    {
+      "id": "s1",
+      "name": "佐藤(店長)",
+      "rank": "stylist",
+      "skills": [
+        "closer",
+        "color",
+        "cut",
+        "perm"
+      ],
+      "assignments": {
+        "2026-08-01": null,
+        "2026-08-02": "short",
+        "2026-08-03": "short",
+        "2026-08-04": "short",
+        "2026-08-05": "short",
+        "2026-08-06": "short",
+        "2026-08-07": "short",
+        "2026-08-08": null,
+        "2026-08-09": "short",
+        "2026-08-10": "short",
+        "2026-08-11": null,
+        "2026-08-12": "short",
+        "2026-08-13": "short",
+        "2026-08-14": null
+      },
+      "total_hours": 50.0,
+      "weekend_shifts": 2
+    },
+    {
+      "id": "s2",
+      "name": "鈴木",
+      "rank": "stylist",
+      "skills": [
+        "closer",
+        "color",
+        "cut"
+      ],
+      "assignments": {
+        "2026-08-01": "early",
+        "2026-08-02": null,
+        "2026-08-03": null,
+        "2026-08-04": null,
+        "2026-08-05": null,
+        "2026-08-06": null,
+        "2026-08-07": null,
+        "2026-08-08": "short",
+        "2026-08-09": null,
+        "2026-08-10": null,
+        "2026-08-11": "short",
+        "2026-08-12": null,
+        "2026-08-13": null,
+        "2026-08-14": "short"
+      },
+      "total_hours": 23.0,
+      "weekend_shifts": 2
+    },
+    {
+      "id": "s3",
+      "name": "高橋",
+      "rank": "junior",
+      "skills": [
+        "color",
+        "cut",
+        "shampoo"
+      ],
+      "assignments": {
+        "2026-08-01": null,
+        "2026-08-02": "late",
+        "2026-08-03": "late",
+        "2026-08-04": "late",
+        "2026-08-05": "late",
+        "2026-08-06": null,
+        "2026-08-07": null,
+        "2026-08-08": null,
+        "2026-08-09": "short",
+        "2026-08-10": null,
+        "2026-08-11": null,
+        "2026-08-12": null,
+        "2026-08-13": null,
+        "2026-08-14": null
+      },
+      "total_hours": 37.0,
+      "weekend_shifts": 2
+    },
+    {
+      "id": "s4",
+      "name": "田中(パート)",
+      "rank": "assistant",
+      "skills": [
+        "reception",
+        "shampoo"
+      ],
+      "assignments": {
+        "2026-08-01": "short",
+        "2026-08-02": null,
+        "2026-08-03": null,
+        "2026-08-04": null,
+        "2026-08-05": null,
+        "2026-08-06": null,
+        "2026-08-07": "short",
+        "2026-08-08": "short",
+        "2026-08-09": null,
+        "2026-08-10": null,
+        "2026-08-11": "short",
+        "2026-08-12": null,
+        "2026-08-13": null,
+        "2026-08-14": "short"
+      },
+      "total_hours": 25.0,
+      "weekend_shifts": 2
+    },
+    {
+      "id": "s5",
+      "name": "伊藤",
+      "rank": "assistant",
+      "skills": [
+        "color",
+        "reception",
+        "shampoo"
+      ],
+      "assignments": {
+        "2026-08-01": null,
+        "2026-08-02": "short",
+        "2026-08-03": "short",
+        "2026-08-04": "short",
+        "2026-08-05": "short",
+        "2026-08-06": "short",
+        "2026-08-07": null,
+        "2026-08-08": null,
+        "2026-08-09": "short",
+        "2026-08-10": "short",
+        "2026-08-11": null,
+        "2026-08-12": "short",
+        "2026-08-13": "short",
+        "2026-08-14": null
+      },
+      "total_hours": 45.0,
+      "weekend_shifts": 2
+    }
+  ]
+}

@@ -33,9 +33,21 @@ shift-craft-salon/
 └── solver/                    FastAPI + OR-Tools（最適化API）
 ```
 
+## デプロイ（Vercel）
+
+フロントエンド（`frontend/`）を Vercel にデプロイする。Python の solver は Vercel では動かないため、Cloud Run 等に置き、フロントから `SOLVER_API_URL` 経由で呼ぶ構成。
+
+1. Vercel にリポジトリをインポート
+2. **Root Directory** を `frontend` に設定（Next.js は自動検出）
+3. （任意）環境変数 `SOLVER_API_URL` に solver の URL を設定
+   - 未設定なら `frontend/lib/sample-schedule.json`（solver PoC の実解）を表示するため、solver 未デプロイでも動作する
+
+詳細は [frontend/README.md](frontend/README.md) を参照。
+
 ## ドキュメント
 
 - [要件定義書 v1.0](docs/requirements-v1.0.md)
+- [制約仕様書 v0.1](docs/constraint-spec.md)
 
 ## リリース計画
 
@@ -47,4 +59,9 @@ shift-craft-salon/
 
 ## ステータス
 
-要件定義フェーズ（v1.0 ドラフト）。次工程はドメイン設計エージェントによる制約仕様書（ハード／ソフト制約の数式化・重み表）の作成。
+- ✅ 要件定義書 v1.0
+- ✅ 制約仕様書 v0.1（ハード/ソフト制約の数式化）
+- ✅ solver PoC（CP-SAT で 5名×14日を 0.02 秒未満で最適求解、実現性確認済み）
+- ✅ frontend MVP（Next.js、シフト表表示、Vercel デプロイ可能）
+- ⬜ solver の FastAPI 化・Cloud Run デプロイ、フロントとの接続
+- ⬜ マスタ管理・希望収集フォームの実装
