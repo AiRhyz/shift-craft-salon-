@@ -9,6 +9,7 @@ import { ShiftGrid } from "@/components/ShiftGrid";
 import type { ConfirmedSchedule } from "@/lib/confirmed";
 import { clearConfirmed, loadConfirmed } from "@/lib/confirmed";
 import type { Schedule } from "@/lib/types";
+import { APP_VERSION } from "@/lib/version";
 import { useEffect, useState } from "react";
 
 function StatCard({
@@ -83,7 +84,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-slate-900">確定シフト</h1>
           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
-            v1 MVP
+            v{APP_VERSION}
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">

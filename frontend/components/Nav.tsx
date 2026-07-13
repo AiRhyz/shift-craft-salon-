@@ -1,3 +1,4 @@
+import { APP_VERSION } from "@/lib/version";
 import Link from "next/link";
 
 export function Nav({ current }: { current: "home" | "plan" | "submit" }) {
@@ -17,6 +18,9 @@ export function Nav({ current }: { current: "home" | "plan" | "submit" }) {
     <nav className="no-print mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
       <span className="mr-2 text-sm font-bold text-slate-800">
         shift-craft-salon
+        <span className="ml-1.5 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+          v{APP_VERSION}
+        </span>
       </span>
       {tab("/", "home", "シフト表")}
       {tab("/plan", "plan", "シフト作成")}

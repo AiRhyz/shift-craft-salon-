@@ -21,10 +21,11 @@ from .demo import demo_request
 from .engine import solve
 from .export import to_xlsx_bytes
 from .models import Schedule, SolveRequest
+from .version import APP_VERSION
 
 app = FastAPI(
     title="shift-craft-salon solver",
-    version="0.1.0",
+    version=APP_VERSION,
     description="美容室シフト自動作成の最適化API（CP-SAT / constraint-spec v0.1）",
 )
 
@@ -39,7 +40,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "version": APP_VERSION}
 
 
 @app.post("/solve", response_model=Schedule)
