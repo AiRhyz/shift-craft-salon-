@@ -11,6 +11,7 @@ export interface StaffConfig {
   max_hours_month: number;
   max_hours_week: number;
   off_days_required: number;
+  hourly_wage: number; // 時給(円)。人件費集計・予算制約(S7)用
   avail_patterns: string[] | null; // null = 全パターン可
 }
 
@@ -30,6 +31,7 @@ export interface PlanConfig {
     ng_hard: [string, string][];
     recommend: [string, string][];
   };
+  budget_yen: number | null; // 期間内の人件費予算(円)。null なら無制限
   max_consecutive: number;
 }
 
@@ -84,30 +86,35 @@ export function defaultConfig(): PlanConfig {
         id: "s1", name: "佐藤(店長)", rank: "stylist",
         skills: ["cut", "color", "perm", "closer"],
         max_hours_month: 160, max_hours_week: 40, off_days_required: 4,
+        hourly_wage: 2000,
         avail_patterns: null,
       },
       {
         id: "s2", name: "鈴木", rank: "stylist",
         skills: ["cut", "color", "closer"],
         max_hours_month: 160, max_hours_week: 40, off_days_required: 4,
+        hourly_wage: 1800,
         avail_patterns: null,
       },
       {
         id: "s3", name: "高橋", rank: "junior",
         skills: ["cut", "color", "shampoo"],
         max_hours_month: 140, max_hours_week: 36, off_days_required: 5,
+        hourly_wage: 1400,
         avail_patterns: null,
       },
       {
         id: "s4", name: "田中(パート)", rank: "assistant",
         skills: ["shampoo", "reception"],
         max_hours_month: 80, max_hours_week: 24, off_days_required: 8,
+        hourly_wage: 1150,
         avail_patterns: ["early", "short"],
       },
       {
         id: "s5", name: "伊藤", rank: "assistant",
         skills: ["shampoo", "reception", "color"],
         max_hours_month: 150, max_hours_week: 40, off_days_required: 5,
+        hourly_wage: 1200,
         avail_patterns: null,
       },
     ],
@@ -121,6 +128,7 @@ export function defaultConfig(): PlanConfig {
       ng_hard: [],
       recommend: [["s1", "s5"]],
     },
+    budget_yen: null,
     max_consecutive: 6,
   };
 }
@@ -131,7 +139,12 @@ export function loadConfig(): PlanConfig | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PlanConfig) : null;
+    if (!raw) return null;
+    const cfg = JSON.parse(raw) as PlanConfig;
+    // 旧バージョンの保存データを補完（フィールド追加時のマイグレーション）
+    cfg.budget_yen = cfg.budget_yen ?? null;
+    cfg.staff = cfg.staff.map((s) => ({ ...s, hourly_wage: s.hourly_wage ?? 0 }));
+    return cfg;
   } catch {
     return null;
   }

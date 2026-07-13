@@ -14,7 +14,7 @@ Python FastAPI ＋ Google OR-Tools（CP-SAT）による最適化API。シフト�
 
 ## API（`app/`）
 
-FastAPI アプリ。制約仕様書の H0–H6・S1/S4/S5/S6 を入力駆動で実装。
+FastAPI アプリ。制約仕様書の H0–H6・S1〜S7 を入力駆動で実装。INFEASIBLE 時は緩和モデルの再求解で原因（人数不足の日・希望休衝突等）を診断して返す。
 
 ### エンドポイント
 
@@ -23,6 +23,7 @@ FastAPI アプリ。制約仕様書の H0–H6・S1/S4/S5/S6 を入力駆動で�
 | GET | `/health` | ヘルスチェック（Cloud Run 用） |
 | POST | `/solve` | シフト求解。ボディが空 or `staff`/`patterns` 未指定ならデモ既定で解く |
 | GET | `/solve/demo` | デモ既定（5名×14日）を解いて返す |
+| POST | `/export/xlsx` | Schedule JSON を Excel（シフト表＋集計）に変換 |
 | GET | `/docs` | 自動生成の OpenAPI ドキュメント |
 
 レスポンスは frontend の `lib/types.ts`（`Schedule`）と一致。

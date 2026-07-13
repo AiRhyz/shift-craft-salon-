@@ -6,16 +6,27 @@
 import { ConfigEditor } from "@/components/ConfigEditor";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
+import { buildCsv } from "@/lib/exportCsv";
 import type { PlanConfig } from "@/lib/planConfig";
 import { defaultConfig, loadConfig, saveConfig } from "@/lib/planConfig";
 import type { Schedule } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function PlanPage() {
   const [config, setConfig] = useState<PlanConfig>(defaultConfig);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const hydrated = useRef(false);
 
   // 初回に localStorage から復元
@@ -55,6 +66,34 @@ export default function PlanPage() {
     setConfig(defaultConfig());
     setSchedule(null);
     setError(null);
+    setNotice(null);
+  };
+
+  // Excel 出力。solver 未接続時は CSV にフォールバック
+  const exportFile = async () => {
+    if (!schedule) return;
+    setNotice(null);
+    try {
+      const res = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(schedule),
+      });
+      if (res.ok) {
+        downloadBlob(await res.blob(), "shift.xlsx");
+        return;
+      }
+    } catch {
+      // フォールバックへ
+    }
+    const csv = buildCsv(schedule);
+    downloadBlob(
+      new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }),
+      "shift.csv",
+    );
+    setNotice(
+      "solver 未接続のため CSV 形式で出力しました（Excel 出力は solver 接続後に利用できます）",
+    );
   };
 
   const isSample = schedule?.meta.source.startsWith("bundled sample");
@@ -95,6 +134,11 @@ export default function PlanPage() {
           {error}
         </div>
       )}
+      {notice && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          {notice}
+        </div>
+      )}
 
       {/* 生成結果 */}
       {schedule && (
@@ -108,19 +152,47 @@ export default function PlanPage() {
             </div>
           )}
           {infeasible ? (
-            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              解が見つかりませんでした（{schedule.meta.status}
-              ）。必要人数・希望休・公休日数・NGペア等の条件が矛盾していないか確認してください。
-              例：必要人数に対してスタッフ数や出勤可能日が不足している等。
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700">
+              <p className="font-semibold">
+                解が見つかりませんでした（{schedule.meta.status}）
+              </p>
+              {schedule.meta.diagnosis?.length ? (
+                <>
+                  <p className="mt-1.5">
+                    原因診断（これらの制約を緩めると解ける可能性があります）:
+                  </p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                    {schedule.meta.diagnosis.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="mt-1">
+                  必要人数・希望休・公休日数・NGペア等の条件が矛盾していないか確認してください。
+                </p>
+              )}
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                 <span>✓ {schedule.meta.status}</span>
                 <span>求解 {schedule.meta.solve_time_s}s</span>
                 <span>NGペア同時出勤 {schedule.meta.ng_soft_violations}回</span>
                 <span>推奨ペア同時出勤 {schedule.meta.recommend_together}回</span>
                 <span>希望充足 {schedule.meta.want_met}件</span>
+                {schedule.meta.estimated_cost_yen != null && (
+                  <span>
+                    概算人件費 ¥
+                    {schedule.meta.estimated_cost_yen.toLocaleString()}
+                  </span>
+                )}
+                <button
+                  onClick={exportFile}
+                  className="ml-auto rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  ⬇ Excel出力
+                </button>
               </div>
               <ShiftGrid schedule={schedule} />
             </>

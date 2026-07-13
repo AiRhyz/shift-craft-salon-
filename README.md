@@ -67,5 +67,8 @@ shift-craft-salon/
 - ✅ solver の FastAPI 化（`/solve`・`/health`・`/solve/demo`、Dockerfile で Cloud Run 対応）
 - ✅ マスタ管理・希望収集UI（`/plan`：スタッフ・必要人数・相性ペア・希望休・定休日を編集して生成）
 - ✅ solver 接続プロキシ（`/api/solve`。E2E検証済み、solver 停止時はサンプルへフォールバック）
+- ✅ 解不能時の原因診断（人数不足の日・希望休衝突・責任者不在等を特定して表示）
+- ✅ ソフト制約 S1〜S7 完備（土日/遅番平準化・指名配置・相性・希望一致・人件費予算）
+- ✅ Excel出力（店内掲示用シフト表＋集計。solver 未接続時は CSV フォールバック）
 - ⬜ solver の Cloud Run デプロイ（[docs/deployment.md](docs/deployment.md) の手順で数コマンド）
 - ⬜ スタッフ本人によるスマホ希望提出・確定通知（v2）、DB永続化（現状はブラウザ保存）

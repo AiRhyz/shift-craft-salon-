@@ -4,6 +4,7 @@
   GET  /health       ヘルスチェック（Cloud Run 用）
   POST /solve        シフト求解。ボディが空 or staff/patterns 未指定ならデモ既定で解く
   GET  /solve/demo   デモ既定を解いて返す（動作確認用）
+  POST /export/xlsx  Schedule JSON を Excel（店内掲示用シフト表＋集計）に変換
 
 CORS は環境変数 ALLOWED_ORIGINS（カンマ区切り）で許可オリジンを指定。
 未指定なら "*"（PoC 用途）。本番は Vercel ドメインに限定すること。
@@ -12,12 +13,13 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from .demo import demo_request
 from .engine import solve
+from .export import to_xlsx_bytes
 from .models import Schedule, SolveRequest
 
 app = FastAPI(
@@ -65,3 +67,15 @@ async def post_solve(request: Request) -> Schedule:
 @app.get("/solve/demo", response_model=Schedule)
 def get_solve_demo() -> Schedule:
     return solve(demo_request())
+
+
+@app.post("/export/xlsx")
+def post_export_xlsx(schedule: Schedule) -> Response:
+    """求解結果（Schedule JSON）を Excel に変換して返す。"""
+    return Response(
+        content=to_xlsx_bytes(schedule),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": 'attachment; filename="shift.xlsx"'},
+    )

@@ -26,7 +26,8 @@ class StaffIn(BaseModel):
     max_hours_month: float = 200
     max_hours_week: float = 40
     off_days_required: int = 0
-    popular: int = 0
+    popular: int = 0                  # 指名の多さ 0..3（S3 用）
+    hourly_wage: float = 0            # 時給(円)。S7 人件費・概算コスト用
     avail_patterns: list[str] | None = None  # None = 全パターン可
 
 
@@ -44,9 +45,12 @@ class PairsIn(BaseModel):
 
 class WeightsIn(BaseModel):
     s1_weekend_range: int = 8
+    s2_late_range: int = 5
+    s3_busy_popular: int = 6
     s5_ng_soft: int = 10
     s4_recommend: int = 4
     s6_want: int = 3
+    s7_over_budget: int = 2  # 予算超過 千円あたりの減点
 
 
 class SolveRequest(BaseModel):
@@ -67,6 +71,7 @@ class SolveRequest(BaseModel):
     want_requests: list[tuple[str, date, str]] = Field(default_factory=list)
     pairs: PairsIn = Field(default_factory=PairsIn)
     weights: WeightsIn = Field(default_factory=WeightsIn)
+    budget_yen: int | None = None    # 期間内の人件費予算(円)。None なら S7 無効
     max_consecutive: int = 6
     max_seconds: float = 10.0
 
@@ -104,6 +109,8 @@ class MetaOut(BaseModel):
     ng_soft_violations: int
     recommend_together: int
     want_met: int
+    estimated_cost_yen: int | None = None   # 概算人件費（時給設定時のみ）
+    diagnosis: list[str] | None = None       # INFEASIBLE 時の原因診断
 
 
 class Schedule(BaseModel):

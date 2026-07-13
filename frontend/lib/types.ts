@@ -27,11 +27,13 @@ export interface ScheduleStaff {
 export interface ScheduleMeta {
   source: string;
   status: string; // OPTIMAL | FEASIBLE | INFEASIBLE ...
-  objective: number;
+  objective: number | null;
   solve_time_s: number;
   ng_soft_violations: number;
   recommend_together: number;
   want_met: number;
+  estimated_cost_yen?: number | null; // 概算人件費（時給設定時のみ）
+  diagnosis?: string[] | null; // INFEASIBLE 時の原因診断
 }
 
 export interface Schedule {

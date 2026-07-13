@@ -30,20 +30,20 @@ def demo_request() -> SolveRequest:
     staff = [
         StaffIn(id="s1", name="佐藤(店長)", rank="stylist",
                 skills=["cut", "color", "perm", "closer"],
-                max_hours_month=160, max_hours_week=40, off_days_required=4, popular=3),
+                max_hours_month=160, max_hours_week=40, off_days_required=4, hourly_wage=2000, popular=3),
         StaffIn(id="s2", name="鈴木", rank="stylist",
                 skills=["cut", "color", "closer"],
-                max_hours_month=160, max_hours_week=40, off_days_required=4, popular=2),
+                max_hours_month=160, max_hours_week=40, off_days_required=4, hourly_wage=1800, popular=2),
         StaffIn(id="s3", name="高橋", rank="junior",
                 skills=["cut", "color", "shampoo"],
-                max_hours_month=140, max_hours_week=36, off_days_required=5, popular=1),
+                max_hours_month=140, max_hours_week=36, off_days_required=5, hourly_wage=1400, popular=1),
         StaffIn(id="s4", name="田中(パート)", rank="assistant",
                 skills=["shampoo", "reception"],
-                max_hours_month=80, max_hours_week=24, off_days_required=8,
+                max_hours_month=80, max_hours_week=24, off_days_required=8, hourly_wage=1150,
                 avail_patterns=["early", "short"]),
         StaffIn(id="s5", name="伊藤", rank="assistant",
                 skills=["shampoo", "reception", "color"],
-                max_hours_month=150, max_hours_week=40, off_days_required=5),
+                max_hours_month=150, max_hours_week=40, off_days_required=5, hourly_wage=1200),
     ]
 
     requirements = RequirementsIn(

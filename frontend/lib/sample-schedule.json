@@ -1,12 +1,14 @@
 {
   "meta": {
-    "source": "solver/poc (constraint-spec v0.1)",
+    "source": "solver API (constraint-spec v0.1)",
     "status": "OPTIMAL",
-    "objective": 51.0,
-    "solve_time_s": 0.0317,
-    "ng_soft_violations": 0,
+    "objective": 147.0,
+    "solve_time_s": 0.0183,
+    "ng_soft_violations": 2,
     "recommend_together": 9,
-    "want_met": 5
+    "want_met": 5,
+    "estimated_cost_yen": 319500,
+    "diagnosis": null
   },
   "patterns": [
     {
@@ -118,23 +120,23 @@
         "perm"
       ],
       "assignments": {
-        "2026-08-01": null,
+        "2026-08-01": "short",
         "2026-08-02": "short",
         "2026-08-03": "short",
-        "2026-08-04": "short",
+        "2026-08-04": null,
         "2026-08-05": "short",
         "2026-08-06": "short",
         "2026-08-07": "short",
-        "2026-08-08": null,
+        "2026-08-08": "short",
         "2026-08-09": "short",
-        "2026-08-10": "short",
+        "2026-08-10": null,
         "2026-08-11": null,
         "2026-08-12": "short",
-        "2026-08-13": "short",
-        "2026-08-14": null
+        "2026-08-13": null,
+        "2026-08-14": "short"
       },
       "total_hours": 50.0,
-      "weekend_shifts": 2
+      "weekend_shifts": 4
     },
     {
       "id": "s2",
@@ -147,22 +149,22 @@
       ],
       "assignments": {
         "2026-08-01": "early",
-        "2026-08-02": null,
-        "2026-08-03": null,
-        "2026-08-04": null,
-        "2026-08-05": null,
+        "2026-08-02": "early",
+        "2026-08-03": "early",
+        "2026-08-04": "early",
+        "2026-08-05": "early",
         "2026-08-06": null,
         "2026-08-07": null,
         "2026-08-08": "short",
-        "2026-08-09": null,
-        "2026-08-10": null,
+        "2026-08-09": "short",
+        "2026-08-10": "short",
         "2026-08-11": "short",
         "2026-08-12": null,
-        "2026-08-13": null,
-        "2026-08-14": "short"
+        "2026-08-13": "short",
+        "2026-08-14": null
       },
-      "total_hours": 23.0,
-      "weekend_shifts": 2
+      "total_hours": 65.0,
+      "weekend_shifts": 4
     },
     {
       "id": "s3",
@@ -175,13 +177,13 @@
       ],
       "assignments": {
         "2026-08-01": null,
-        "2026-08-02": "late",
-        "2026-08-03": "late",
-        "2026-08-04": "late",
-        "2026-08-05": "late",
+        "2026-08-02": null,
+        "2026-08-03": null,
+        "2026-08-04": null,
+        "2026-08-05": null,
         "2026-08-06": null,
         "2026-08-07": null,
-        "2026-08-08": null,
+        "2026-08-08": "short",
         "2026-08-09": "short",
         "2026-08-10": null,
         "2026-08-11": null,
@@ -189,7 +191,7 @@
         "2026-08-13": null,
         "2026-08-14": null
       },
-      "total_hours": 37.0,
+      "total_hours": 10.0,
       "weekend_shifts": 2
     },
     {
@@ -204,19 +206,19 @@
         "2026-08-01": "short",
         "2026-08-02": null,
         "2026-08-03": null,
-        "2026-08-04": null,
+        "2026-08-04": "short",
         "2026-08-05": null,
         "2026-08-06": null,
-        "2026-08-07": "short",
-        "2026-08-08": "short",
-        "2026-08-09": null,
-        "2026-08-10": null,
+        "2026-08-07": null,
+        "2026-08-08": null,
+        "2026-08-09": "short",
+        "2026-08-10": "short",
         "2026-08-11": "short",
         "2026-08-12": null,
-        "2026-08-13": null,
-        "2026-08-14": "short"
+        "2026-08-13": "short",
+        "2026-08-14": null
       },
-      "total_hours": 25.0,
+      "total_hours": 30.0,
       "weekend_shifts": 2
     },
     {
@@ -232,20 +234,20 @@
         "2026-08-01": null,
         "2026-08-02": "short",
         "2026-08-03": "short",
-        "2026-08-04": "short",
+        "2026-08-04": null,
         "2026-08-05": "short",
         "2026-08-06": "short",
-        "2026-08-07": null,
-        "2026-08-08": null,
+        "2026-08-07": "short",
+        "2026-08-08": "short",
         "2026-08-09": "short",
-        "2026-08-10": "short",
+        "2026-08-10": null,
         "2026-08-11": null,
         "2026-08-12": "short",
-        "2026-08-13": "short",
-        "2026-08-14": null
+        "2026-08-13": null,
+        "2026-08-14": "short"
       },
       "total_hours": 45.0,
-      "weekend_shifts": 2
+      "weekend_shifts": 3
     }
   ]
 }

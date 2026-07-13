@@ -60,6 +60,7 @@ function StaffEditor({
           max_hours_month: 160,
           max_hours_week: 40,
           off_days_required: 4,
+          hourly_wage: 1200,
           avail_patterns: null,
         },
       ],
@@ -93,7 +94,7 @@ function StaffEditor({
             key={s.id}
             className="rounded-md border border-slate-100 bg-slate-50/60 p-3"
           >
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
               <div className="col-span-2 sm:col-span-1">
                 <label className="text-[11px] text-slate-500">氏名</label>
                 <input
@@ -150,6 +151,19 @@ function StaffEditor({
                   value={s.off_days_required}
                   onChange={(e) =>
                     update(i, { off_days_required: Number(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-500">時給(円)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={50}
+                  className={numCls}
+                  value={s.hourly_wage}
+                  onChange={(e) =>
+                    update(i, { hourly_wage: Number(e.target.value) || 0 })
                   }
                 />
               </div>
@@ -505,7 +519,7 @@ function PeriodEditor({
 
   return (
     <Section title="対象期間・店舗設定">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div>
           <label className="text-[11px] text-slate-500">開始日</label>
           <input
@@ -543,6 +557,26 @@ function PeriodEditor({
               onChange({
                 ...config,
                 max_consecutive: Math.max(1, Number(e.target.value) || 6),
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="text-[11px] text-slate-500">
+            人件費予算(円・空欄=無制限)
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={10000}
+            className={numCls}
+            placeholder="例: 300000"
+            value={config.budget_yen ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                budget_yen:
+                  e.target.value === "" ? null : Number(e.target.value) || 0,
               })
             }
           />
