@@ -4,6 +4,7 @@
 // 設定を編集 → 生成 → 結果（シフト表）を表示。設定は localStorage に自動保存。
 
 import { ConfigEditor } from "@/components/ConfigEditor";
+import { DayTimeline } from "@/components/DayTimeline";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
 import { saveConfirmed } from "@/lib/confirmed";
@@ -36,6 +37,7 @@ export default function PlanPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [violations, setViolations] = useState<string[]>([]);
+  const [selDay, setSelDay] = useState<string | null>(null);
   const hydrated = useRef(false);
 
   // 初回に localStorage から復元
@@ -298,11 +300,24 @@ export default function PlanPage() {
                   </ul>
                 </div>
               )}
+              <p className="text-xs text-slate-400">
+                日付（列見出し）をクリックすると、その日の時間帯の重なりを表示します
+              </p>
               <ShiftGrid
                 schedule={schedule}
                 editable={editMode}
                 onCellChange={handleCellChange}
+                onDayClick={(d) => setSelDay(selDay === d ? null : d)}
+                selectedDate={selDay}
               />
+              {selDay && (
+                <DayTimeline
+                  schedule={schedule}
+                  date={selDay}
+                  storeOpen={config.store_open}
+                  storeClose={config.store_close}
+                />
+              )}
             </>
           )}
         </section>

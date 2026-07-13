@@ -2,6 +2,11 @@ import type { Schedule } from "@/lib/types";
 import { RANK_LABEL, WEEKDAY_JP } from "@/lib/schedule";
 
 // パターン数が可変になったため、色は並び順でパレットから割当てる
+export const PALETTE_SOLID = [
+  "bg-sky-500", "bg-indigo-500", "bg-amber-500", "bg-emerald-500",
+  "bg-purple-500", "bg-pink-500", "bg-teal-500", "bg-lime-500",
+];
+
 const PALETTE = [
   "bg-sky-100 text-sky-800",
   "bg-indigo-100 text-indigo-800",
@@ -21,10 +26,14 @@ export function ShiftGrid({
   schedule,
   editable = false,
   onCellChange,
+  onDayClick,
+  selectedDate,
 }: {
   schedule: Schedule;
   editable?: boolean;
   onCellChange?: (staffId: string, date: string, patternId: string | null) => void;
+  onDayClick?: (date: string) => void;
+  selectedDate?: string | null;
 }) {
   const { days, staff, patterns } = schedule;
   const hasShortage = days.some((d) => (d.shortage ?? 0) > 0);
@@ -43,11 +52,16 @@ export function ShiftGrid({
               </th>
               {days.map((d) => {
                 const day = Number(d.date.slice(8, 10));
+                const selected = selectedDate === d.date;
                 return (
                   <th
                     key={d.date}
+                    onClick={onDayClick ? () => onDayClick(d.date) : undefined}
+                    title={onDayClick ? "クリックで時間帯表示" : undefined}
                     className={`px-2 py-2 text-center font-medium ${
                       d.is_weekend ? "bg-rose-50 text-rose-600" : "text-slate-500"
+                    } ${onDayClick ? "cursor-pointer hover:bg-brand/10" : ""} ${
+                      selected ? "bg-brand/15 ring-2 ring-inset ring-brand" : ""
                     }`}
                   >
                     <div>{day}</div>

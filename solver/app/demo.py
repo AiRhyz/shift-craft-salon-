@@ -21,10 +21,14 @@ def demo_request() -> SolveRequest:
     days = [start.fromordinal(start.toordinal() + i) for i in range(31)]
 
     patterns = [
-        PatternIn(id="early", label="早番 9:00-18:00", hours=8.0, is_late=False),
-        PatternIn(id="late", label="遅番 12:00-21:00", hours=8.0, is_late=True),
-        PatternIn(id="full", label="通し 9:00-21:00", hours=11.0, is_late=False),
-        PatternIn(id="short", label="時短 10:00-15:00", hours=5.0, is_late=False),
+        PatternIn(id="early", label="早番 9:00-18:00", hours=8.0, is_late=False,
+                  start="09:00", end="18:00", break_min=60),
+        PatternIn(id="late", label="遅番 12:00-21:00", hours=8.0, is_late=True,
+                  start="12:00", end="21:00", break_min=60),
+        PatternIn(id="full", label="通し 9:00-21:00", hours=11.0, is_late=False,
+                  start="09:00", end="21:00", break_min=60),
+        PatternIn(id="short", label="時短 10:00-15:00", hours=5.0, is_late=False,
+                  start="10:00", end="15:00", break_min=0),
     ]
 
     staff = [
@@ -49,6 +53,7 @@ def demo_request() -> SolveRequest:
     requirements = RequirementsIn(
         by_rank={"stylist": 1, "assistant": 1},
         by_skill={"closer": 1, "shampoo": 1},
+        coverage_min=1,  # 営業中は常に1名以上
     )
 
     off_requests: list[tuple[str, date]] = []
@@ -72,6 +77,8 @@ def demo_request() -> SolveRequest:
     return SolveRequest(
         start_date=start,
         num_days=31,
+        store_open="09:00",
+        store_close="21:00",
         patterns=patterns,
         staff=staff,
         requirements=requirements,

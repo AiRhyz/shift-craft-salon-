@@ -134,6 +134,41 @@ def _build(req: SolveRequest, mode: str) -> _Ctx:
             else:
                 model.Add(total >= need)
 
+    # H8(v1.5): 営業時間カバー — 営業中の各時間帯に最低 coverage_min 名を配置
+    cov = req.requirements.coverage_min
+    if cov > 0 and req.store_open and req.store_close:
+        def _tmin(t: str) -> int:
+            h, m = t.split(":")
+            return int(h) * 60 + int(m)
+
+        o, cl = _tmin(req.store_open), _tmin(req.store_close)
+        pat_span = {p.id: (_tmin(p.start), _tmin(p.end))
+                    for p in req.patterns if p.start and p.end}
+        if pat_span and cl > o:
+            # パターン境界で営業時間を区間に分割し、区間ごとに在店人数を数える
+            pts = sorted({o, cl,
+                          *[min(cl, max(o, s)) for s, _ in pat_span.values()],
+                          *[min(cl, max(o, e)) for _, e in pat_span.values()]})
+            intervals = [(a, b) for a, b in zip(pts, pts[1:]) if b > a]
+            for d in open_days:
+                diso = d.isoformat()
+                for a, b in intervals:
+                    covering = [pid for pid, (s, e) in pat_span.items()
+                                if s <= a and e >= b]
+                    vars_ = [ctx.x[(s.id, diso, pid)] for s in req.staff
+                             for pid in covering if (s.id, diso, pid) in ctx.x]
+                    tv = model.NewIntVar(0, len(req.staff), f"cov_{diso}_{a}")
+                    model.Add(tv == sum(vars_))
+                    label = f"{a//60:02d}:{a%60:02d}-{b//60:02d}:{b%60:02d}"
+                    if demand_slack:
+                        sv = add_slack(cov, f"sl_cov_{diso}_{a}", diso,
+                                       f"{label} 在店{{v}}名不足",
+                                       f"{diso}: {label} の在店が{{v}}名不足",
+                                       kind="coverage")
+                        model.Add(tv + sv >= cov)
+                    else:
+                        model.Add(tv >= cov)
+
     # H2: 希望休（besteffort でも死守）
     for sid, d in req.off_requests:
         key = (sid, d.isoformat())
@@ -412,6 +447,8 @@ def _run(req: SolveRequest, mode: str) -> Schedule:
         "estimated_cost_yen": round(total_cost) if (feasible and has_wage) else None,
         "diagnosis": None,
         "shortage_total": sum(shortage_by_day.values()),
+        "store_open": req.store_open,
+        "store_close": req.store_close,
     }
     days_out = [{
         "date": d.isoformat(), "weekday": d.weekday(),

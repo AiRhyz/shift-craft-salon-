@@ -664,6 +664,33 @@ function RequirementsEditor({ config, onChange }: Props) {
         />
       </div>
 
+      <div className="mt-3 flex flex-wrap items-end gap-3 rounded-md border border-sky-100 bg-sky-50/50 p-2">
+        <div className="w-44">
+          <label className="text-[11px] text-slate-500">
+            営業中の最低在店人数
+          </label>
+          <input
+            type="number"
+            min={0}
+            className={numCls}
+            value={req.coverage_min}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                requirements: {
+                  ...req,
+                  coverage_min: Math.max(0, Number(e.target.value) || 0),
+                },
+              })
+            }
+          />
+        </div>
+        <p className="pb-1 text-xs text-slate-500">
+          営業時間の<b>すべての時間帯</b>にこの人数以上を配置します（0=チェックしない）。
+          時短だけで営業前後が無人になる問題を防ぎます
+        </p>
+      </div>
+
       {overrideWds.sort().map((wd) => (
         <div
           key={wd}

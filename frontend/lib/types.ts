@@ -41,6 +41,8 @@ export interface ScheduleMeta {
   estimated_cost_yen?: number | null; // 概算人件費（時給設定時のみ）
   diagnosis?: string[] | null; // INFEASIBLE/BEST_EFFORT 時の原因診断
   shortage_total?: number; // 不足人日の合計（BEST_EFFORT 時）
+  store_open?: string | null; // 営業時間（タイムライン表示用）
+  store_close?: string | null;
 }
 
 export interface Schedule {

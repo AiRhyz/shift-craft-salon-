@@ -45,6 +45,7 @@ class DayRequirements(BaseModel):
 class RequirementsIn(DayRequirements):
     """基本の必要人数＋曜日別の上書き（例: 土曜はスタイリスト3名）。"""
     weekday_overrides: dict[int, DayRequirements] = Field(default_factory=dict)
+    coverage_min: int = 0   # 営業時間中の各時間帯の最低在店人数(0=チェックしない)
 
     def for_weekday(self, wd: int) -> DayRequirements:
         return self.weekday_overrides.get(wd) or self
@@ -79,6 +80,8 @@ class SolveRequest(BaseModel):
     num_days: int | None = None
     holidays: list[date] = Field(default_factory=list)   # 追加の休業/祝日
     closed_weekdays: list[int] = Field(default_factory=list)  # 定休日(0=月..6=日)
+    store_open: str | None = None    # 営業開始 "09:00"（時間帯カバー制約用）
+    store_close: str | None = None   # 営業終了 "21:00"
 
     patterns: list[PatternIn]
     staff: list[StaffIn]
@@ -134,6 +137,8 @@ class MetaOut(BaseModel):
     estimated_cost_yen: int | None = None   # 概算人件費（時給設定時のみ）
     diagnosis: list[str] | None = None       # INFEASIBLE/BEST_EFFORT 時の原因診断
     shortage_total: int = 0                  # 不足人日の合計（BEST_EFFORT 時）
+    store_open: str | None = None            # 営業時間（タイムライン表示用に透過）
+    store_close: str | None = None
 
 
 class Schedule(BaseModel):

@@ -2,7 +2,7 @@
 // solver と同じルール（必要人数・希望休・連勤・労働時間・勤務可否）をクライアント側で判定。
 
 import type { PlanConfig, DayRequirements } from "./planConfig";
-import { RANKS, SKILLS, WEEKDAYS_JP, patternHours } from "./planConfig";
+import { RANKS, SKILLS, WEEKDAYS_JP, patternHours, toMin } from "./planConfig";
 import type { Schedule } from "./types";
 
 const RANK_JP: Record<string, string> = Object.fromEntries(
@@ -169,6 +169,41 @@ export function recomputeAndValidate(
       shortage_detail: detail,
     };
   });
+
+  // ---------- 時間帯カバー（営業中の最低在店人数） ----------
+  const cov = config.requirements.coverage_min ?? 0;
+  if (cov > 0) {
+    const o = toMin(config.store_open);
+    const cl = toMin(config.store_close);
+    const spans = new Map(
+      config.patterns.map((p) => [p.id, [toMin(p.start), toMin(p.end)]] as const),
+    );
+    const pts = Array.from(
+      new Set([o, cl, ...config.patterns.flatMap((p) => [toMin(p.start), toMin(p.end)])]),
+    )
+      .filter((t) => t >= o && t <= cl)
+      .sort((a, b) => a - b);
+    const fmtT = (t: number) =>
+      `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+    for (const day of newDays) {
+      if (isClosedDay(day.date, day.weekday)) continue;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [a, b] = [pts[i], pts[i + 1]];
+        if (b <= a) continue;
+        const n = newStaff.filter((s) => {
+          const pid = s.assignments[day.date];
+          if (!pid) return false;
+          const sp = spans.get(pid);
+          return sp ? sp[0] <= a && sp[1] >= b : false;
+        }).length;
+        if (n < cov) {
+          violations.push(
+            `${fmtDate(day.date)} ${fmtT(a)}〜${fmtT(b)}: 在店${n}名（最低${cov}名）`,
+          );
+        }
+      }
+    }
+  }
 
   // ---------- 人件費 ----------
   let cost = 0;

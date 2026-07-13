@@ -4,6 +4,7 @@
 // 「シフト作成」で確定されたシフト（localStorage）を表示し、
 // 未確定の間はデモ解（solver or 同梱サンプル）を表示する。
 
+import { DayTimeline } from "@/components/DayTimeline";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
 import type { ConfirmedSchedule } from "@/lib/confirmed";
@@ -34,6 +35,7 @@ export default function Home() {
   const [confirmed, setConfirmed] = useState<ConfirmedSchedule | null>(null);
   const [demo, setDemo] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selDay, setSelDay] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = loadConfirmed();
@@ -165,8 +167,25 @@ export default function Home() {
           <section className="mb-8">
             <h2 className="mb-3 text-sm font-semibold text-slate-700">
               シフト表（スタッフ × 日）
+              <span className="ml-2 text-xs font-normal text-slate-400">
+                日付クリックで時間帯表示
+              </span>
             </h2>
-            <ShiftGrid schedule={schedule} />
+            <ShiftGrid
+              schedule={schedule}
+              onDayClick={(d) => setSelDay(selDay === d ? null : d)}
+              selectedDate={selDay}
+            />
+            {selDay && (
+              <div className="mt-3">
+                <DayTimeline
+                  schedule={schedule}
+                  date={selDay}
+                  storeOpen={schedule.meta.store_open ?? undefined}
+                  storeClose={schedule.meta.store_close ?? undefined}
+                />
+              </div>
+            )}
           </section>
 
           <section className="mb-8">

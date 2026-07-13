@@ -41,6 +41,7 @@ export interface PlanConfig {
   staff: StaffConfig[];
   requirements: DayRequirements & {
     weekday_overrides: Record<number, DayRequirements>;
+    coverage_min: number; // 営業時間中の最低在店人数(0=チェックしない)
   };
   off_requests: [string, string][]; // [staffId, date]
   want_requests: [string, string, string][]; // [staffId, date, patternId]
@@ -178,6 +179,7 @@ export function defaultConfig(): PlanConfig {
       by_rank: { stylist: 1, junior: 0, assistant: 1 },
       by_skill: { closer: 1, shampoo: 1 },
       weekday_overrides: {},
+      coverage_min: 1,
     },
     off_requests: offRequests,
     want_requests: [],
@@ -202,6 +204,8 @@ export function buildSolveRequest(config: PlanConfig): Record<string, unknown> {
     num_days: config.num_days,
     closed_weekdays: config.closed_weekdays,
     holidays: config.holidays,
+    store_open: config.store_open,
+    store_close: config.store_close,
     patterns: config.patterns.map((p) => ({
       id: p.id,
       label: `${p.label} ${p.start}-${p.end}`,
@@ -255,6 +259,7 @@ export function loadConfig(): PlanConfig | null {
       by_rank: cfg.requirements?.by_rank ?? {},
       by_skill: cfg.requirements?.by_skill ?? {},
       weekday_overrides: cfg.requirements?.weekday_overrides ?? {},
+      coverage_min: cfg.requirements?.coverage_min ?? 1,
     };
     cfg.staff = (cfg.staff ?? []).map((s) => ({
       ...s,
