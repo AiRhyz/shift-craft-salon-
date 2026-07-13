@@ -5,8 +5,12 @@
 // リマインド・LINE 通知は v2（Supabase + 通知連携）で対応する。
 
 import { Nav } from "@/components/Nav";
+import { loadConfirmed } from "@/lib/confirmed";
 import type { PlanConfig } from "@/lib/planConfig";
 import { defaultConfig, loadConfig, saveConfig } from "@/lib/planConfig";
+import type { SwapRequest } from "@/lib/swaps";
+import { addSwap, loadSwaps } from "@/lib/swaps";
+import type { Schedule } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 
 const inputCls =
@@ -18,11 +22,17 @@ export default function SubmitPage() {
   const [day, setDay] = useState("");
   const [wish, setWish] = useState("off");
   const [saved, setSaved] = useState(false);
+  const [confirmedSched, setConfirmedSched] = useState<Schedule | null>(null);
+  const [swaps, setSwaps] = useState<SwapRequest[]>([]);
+  const [swapDate, setSwapDate] = useState("");
+  const [swapTo, setSwapTo] = useState("");
   const hydrated = useRef(false);
 
   useEffect(() => {
     const c = loadConfig();
     if (c) setConfig(c);
+    setConfirmedSched(loadConfirmed()?.schedule ?? null);
+    setSwaps(loadSwaps());
     hydrated.current = true;
   }, []);
 
@@ -193,6 +203,91 @@ export default function SubmitPage() {
                 )}
               </div>
             </section>
+            {/* シフト交換申請（確定シフトがある場合） */}
+            {confirmedSched && (
+              <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-slate-700">
+                  シフト交換申請
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  確定シフトのうち自分の出勤日を選び、代わってほしい相手に申請します（店長の承認後に反映）
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500">自分の出勤日</label>
+                    <select
+                      className={inputCls}
+                      value={swapDate}
+                      onChange={(e) => setSwapDate(e.target.value)}
+                    >
+                      <option value="">選択</option>
+                      {confirmedSched.days
+                        .filter((d) => {
+                          const meRow = confirmedSched.staff.find(
+                            (s) => s.id === sid,
+                          );
+                          return meRow?.assignments[d.date];
+                        })
+                        .map((d) => (
+                          <option key={d.date} value={d.date}>
+                            {d.date.slice(5).replace("-", "/")}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500">交代相手</label>
+                    <select
+                      className={inputCls}
+                      value={swapTo}
+                      onChange={(e) => setSwapTo(e.target.value)}
+                    >
+                      <option value="">選択</option>
+                      {config.staff
+                        .filter((s) => s.id !== sid)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!sid || !swapDate || !swapTo) return;
+                    addSwap(sid, swapTo, swapDate);
+                    setSwaps(loadSwaps());
+                    setSwapDate("");
+                    setSwapTo("");
+                  }}
+                  disabled={!swapDate || !swapTo}
+                  className="mt-3 w-full rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/5 disabled:opacity-40"
+                >
+                  交換を申請する
+                </button>
+                <div className="mt-2 space-y-1">
+                  {swaps
+                    .filter((r) => r.from_id === sid)
+                    .map((r) => {
+                      const st = {
+                        pending: ["承認待ち", "text-amber-600"],
+                        approved: ["承認済み", "text-emerald-600"],
+                        rejected: ["却下", "text-rose-500"],
+                      }[r.status];
+                      const toName =
+                        config.staff.find((s) => s.id === r.to_id)?.name ??
+                        r.to_id;
+                      return (
+                        <div key={r.id} className="text-xs text-slate-600">
+                          {r.date.slice(5).replace("-", "/")} → {toName}：{" "}
+                          <span className={`font-semibold ${st[1]}`}>{st[0]}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>

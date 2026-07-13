@@ -172,14 +172,27 @@ export function recomputeAndValidate(
 
   // ---------- 時間帯カバー（営業中の最低在店人数） ----------
   const cov = config.requirements.coverage_min ?? 0;
-  if (cov > 0) {
+  const bands: { a: number; b: number; n: number }[] = [];
+  {
     const o = toMin(config.store_open);
     const cl = toMin(config.store_close);
+    if (cov > 0 && cl > o) bands.push({ a: o, b: cl, n: cov });
+    for (const tb of config.requirements.time_bands ?? []) {
+      if (tb.min_staff > 0) bands.push({ a: toMin(tb.start), b: toMin(tb.end), n: tb.min_staff });
+    }
+  }
+  if (bands.length > 0) {
+    const o = Math.min(...bands.map((x) => x.a));
+    const cl = Math.max(...bands.map((x) => x.b));
     const spans = new Map(
       config.patterns.map((p) => [p.id, [toMin(p.start), toMin(p.end)]] as const),
     );
-    const pts = Array.from(
-      new Set([o, cl, ...config.patterns.flatMap((p) => [toMin(p.start), toMin(p.end)])]),
+    const boundary = Array.from(
+      new Set([
+        o, cl,
+        ...bands.flatMap((x) => [x.a, x.b]),
+        ...config.patterns.flatMap((p) => [toMin(p.start), toMin(p.end)]),
+      ]),
     )
       .filter((t) => t >= o && t <= cl)
       .sort((a, b) => a - b);
@@ -187,18 +200,23 @@ export function recomputeAndValidate(
       `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
     for (const day of newDays) {
       if (isClosedDay(day.date, day.weekday)) continue;
-      for (let i = 0; i + 1 < pts.length; i++) {
-        const [a, b] = [pts[i], pts[i + 1]];
+      for (let i = 0; i + 1 < boundary.length; i++) {
+        const [a, b] = [boundary[i], boundary[i + 1]];
         if (b <= a) continue;
+        const need = Math.max(
+          0,
+          ...bands.filter((x) => x.a <= a && x.b >= b).map((x) => x.n),
+        );
+        if (need <= 0) continue;
         const n = newStaff.filter((s) => {
           const pid = s.assignments[day.date];
           if (!pid) return false;
           const sp = spans.get(pid);
           return sp ? sp[0] <= a && sp[1] >= b : false;
         }).length;
-        if (n < cov) {
+        if (n < need) {
           violations.push(
-            `${fmtDate(day.date)} ${fmtT(a)}〜${fmtT(b)}: 在店${n}名（最低${cov}名）`,
+            `${fmtDate(day.date)} ${fmtT(a)}〜${fmtT(b)}: 在店${n}名（最低${need}名）`,
           );
         }
       }

@@ -691,6 +691,102 @@ function RequirementsEditor({ config, onChange }: Props) {
         </p>
       </div>
 
+      {/* 時間帯別の追加下限（例: 夕方の繁忙帯は2名） */}
+      <div className="mt-3">
+        <span className="text-[11px] text-slate-500">
+          時間帯別の最低人数（繁忙帯の増員。例: 18:00〜21:00 は2名）
+        </span>
+        <div className="mt-1 space-y-2">
+          {(config.requirements.time_bands ?? []).map((tb, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-2">
+              <input
+                type="time"
+                className={`${inputCls} w-28`}
+                value={tb.start}
+                onChange={(e) => {
+                  const time_bands = config.requirements.time_bands.map(
+                    (x, j) => (j === i ? { ...x, start: e.target.value } : x),
+                  );
+                  onChange({
+                    ...config,
+                    requirements: { ...config.requirements, time_bands },
+                  });
+                }}
+              />
+              <span className="pb-1 text-slate-400">〜</span>
+              <input
+                type="time"
+                className={`${inputCls} w-28`}
+                value={tb.end}
+                onChange={(e) => {
+                  const time_bands = config.requirements.time_bands.map(
+                    (x, j) => (j === i ? { ...x, end: e.target.value } : x),
+                  );
+                  onChange({
+                    ...config,
+                    requirements: { ...config.requirements, time_bands },
+                  });
+                }}
+              />
+              <div className="w-24">
+                <label className="text-[11px] text-slate-500">最低人数</label>
+                <input
+                  type="number"
+                  min={1}
+                  className={numCls}
+                  value={tb.min_staff}
+                  onChange={(e) => {
+                    const time_bands = config.requirements.time_bands.map(
+                      (x, j) =>
+                        j === i
+                          ? { ...x, min_staff: Math.max(1, Number(e.target.value) || 1) }
+                          : x,
+                    );
+                    onChange({
+                      ...config,
+                      requirements: { ...config.requirements, time_bands },
+                    });
+                  }}
+                />
+              </div>
+              <button
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    requirements: {
+                      ...config.requirements,
+                      time_bands: config.requirements.time_bands.filter(
+                        (_, j) => j !== i,
+                      ),
+                    },
+                  })
+                }
+                className="pb-1.5 text-xs text-rose-500 hover:underline"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              onChange({
+                ...config,
+                requirements: {
+                  ...config.requirements,
+                  time_bands: [
+                    ...(config.requirements.time_bands ?? []),
+                    { start: "18:00", end: config.store_close, min_staff: 2 },
+                  ],
+                },
+              })
+            }
+            className="rounded-md border border-brand px-3 py-1 text-xs font-medium text-brand hover:bg-brand/5"
+          >
+            ＋ 時間帯を追加
+          </button>
+        </div>
+      </div>
+
       {overrideWds.sort().map((wd) => (
         <div
           key={wd}
@@ -997,6 +1093,22 @@ function WishEditor({ config, onChange }: Props) {
 
 // ---------------------------------------------------------------- 全体
 
+function NotifyEditor({ config, onChange }: Props) {
+  return (
+    <Section
+      title="通知設定"
+      hint="確定時に通知を送ります。Slack / Discord の Incoming Webhook URL に対応（LINE は docs/integrations.md 参照）"
+    >
+      <input
+        className={inputCls}
+        placeholder="https://hooks.slack.com/services/... または https://discord.com/api/webhooks/...（空=通知しない）"
+        value={config.webhook_url}
+        onChange={(e) => onChange({ ...config, webhook_url: e.target.value })}
+      />
+    </Section>
+  );
+}
+
 export function ConfigEditor({ config, onChange }: Props) {
   return (
     <div className="space-y-4">
@@ -1006,6 +1118,7 @@ export function ConfigEditor({ config, onChange }: Props) {
       <RequirementsEditor config={config} onChange={onChange} />
       <PairsEditor config={config} onChange={onChange} />
       <WishEditor config={config} onChange={onChange} />
+      <NotifyEditor config={config} onChange={onChange} />
     </div>
   );
 }

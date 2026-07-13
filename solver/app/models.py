@@ -36,6 +36,13 @@ class StaffIn(BaseModel):
     unavailable_weekdays: list[int] = Field(default_factory=list)  # 勤務不可曜日(0=月..6=日)
 
 
+class TimeBand(BaseModel):
+    """時間帯別の最低人数（例: 18:00-21:00 は2名）。"""
+    start: str      # "18:00"
+    end: str        # "21:00"
+    min_staff: int = 1
+
+
 class DayRequirements(BaseModel):
     """1日あたりの最低必要人数。"""
     by_rank: dict[str, int] = Field(default_factory=dict)
@@ -46,6 +53,7 @@ class RequirementsIn(DayRequirements):
     """基本の必要人数＋曜日別の上書き（例: 土曜はスタイリスト3名）。"""
     weekday_overrides: dict[int, DayRequirements] = Field(default_factory=dict)
     coverage_min: int = 0   # 営業時間中の各時間帯の最低在店人数(0=チェックしない)
+    time_bands: list[TimeBand] = Field(default_factory=list)  # 時間帯別の追加下限
 
     def for_weekday(self, wd: int) -> DayRequirements:
         return self.weekday_overrides.get(wd) or self

@@ -5,6 +5,7 @@
 // 未確定の間はデモ解（solver or 同梱サンプル）を表示する。
 
 import { DayTimeline } from "@/components/DayTimeline";
+import { FairnessTable } from "@/components/FairnessTable";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
 import type { ConfirmedSchedule } from "@/lib/confirmed";
@@ -190,38 +191,9 @@ export default function Home() {
 
           <section className="mb-8">
             <h2 className="mb-3 text-sm font-semibold text-slate-700">
-              個人別集計
+              個人別集計・公平性
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">スタッフ</th>
-                    <th className="px-3 py-2 text-right font-medium">労働時間</th>
-                    <th className="px-3 py-2 text-right font-medium">土日出勤</th>
-                    <th className="px-3 py-2 text-left font-medium">スキル</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedule.staff.map((s) => (
-                    <tr key={s.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-medium text-slate-800">
-                        {s.name}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                        {s.total_hours.toFixed(1)}h
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                        {s.weekend_shifts} 回
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-400">
-                        {s.skills.join(" / ")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <FairnessTable schedule={schedule} />
           </section>
         </>
       )}

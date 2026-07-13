@@ -28,6 +28,12 @@ export interface DayRequirements {
   by_skill: Record<string, number>;
 }
 
+export interface TimeBand {
+  start: string; // "18:00"
+  end: string; // "21:00"
+  min_staff: number;
+}
+
 export type PairKind = "ng_soft" | "ng_hard" | "caution" | "recommend";
 
 export interface PlanConfig {
@@ -42,7 +48,9 @@ export interface PlanConfig {
   requirements: DayRequirements & {
     weekday_overrides: Record<number, DayRequirements>;
     coverage_min: number; // 営業時間中の最低在店人数(0=チェックしない)
+    time_bands: TimeBand[]; // 時間帯別の追加下限(例: 18-21時は2名)
   };
+  webhook_url: string; // 確定通知の送信先(Slack/Discord Webhook等。空=通知しない)
   off_requests: [string, string][]; // [staffId, date]
   want_requests: [string, string, string][]; // [staffId, date, patternId]
   pairs: Record<PairKind, [string, string][]>;
@@ -91,6 +99,13 @@ export function patternWarning(
   if (patternHours(p) <= 0) return "実働が0時間以下です";
   if (toMin(p.start) < toMin(open) || toMin(p.end) > toMin(close)) {
     return `営業時間(${open}〜${close})の範囲外です`;
+  }
+  const h = patternHours(p);
+  if (h > 8 && (p.break_min || 0) < 60) {
+    return "実働8時間超は休憩60分以上が必要です（労基法34条）";
+  }
+  if (h > 6 && (p.break_min || 0) < 45) {
+    return "実働6時間超は休憩45分以上が必要です（労基法34条）";
   }
   return null;
 }
@@ -180,7 +195,9 @@ export function defaultConfig(): PlanConfig {
       by_skill: { closer: 1, shampoo: 1 },
       weekday_overrides: {},
       coverage_min: 1,
+      time_bands: [],
     },
+    webhook_url: "",
     off_requests: offRequests,
     want_requests: [],
     pairs: {
@@ -260,7 +277,9 @@ export function loadConfig(): PlanConfig | null {
       by_skill: cfg.requirements?.by_skill ?? {},
       weekday_overrides: cfg.requirements?.weekday_overrides ?? {},
       coverage_min: cfg.requirements?.coverage_min ?? 1,
+      time_bands: cfg.requirements?.time_bands ?? [],
     };
+    cfg.webhook_url = cfg.webhook_url ?? "";
     cfg.staff = (cfg.staff ?? []).map((s) => ({
       ...s,
       hourly_wage: s.hourly_wage ?? 0,

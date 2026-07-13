@@ -5,9 +5,12 @@
 
 import { ConfigEditor } from "@/components/ConfigEditor";
 import { DayTimeline } from "@/components/DayTimeline";
+import { FairnessTable } from "@/components/FairnessTable";
 import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
-import { saveConfirmed } from "@/lib/confirmed";
+import { loadConfirmed, saveConfirmed } from "@/lib/confirmed";
+import type { SwapRequest } from "@/lib/swaps";
+import { loadSwaps, setSwapStatus } from "@/lib/swaps";
 import { buildCsv } from "@/lib/exportCsv";
 import type { PlanConfig } from "@/lib/planConfig";
 import {
@@ -38,12 +41,14 @@ export default function PlanPage() {
   const [editMode, setEditMode] = useState(false);
   const [violations, setViolations] = useState<string[]>([]);
   const [selDay, setSelDay] = useState<string | null>(null);
+  const [swaps, setSwaps] = useState<SwapRequest[]>([]);
   const hydrated = useRef(false);
 
   // 初回に localStorage から復元
   useEffect(() => {
     const saved = loadConfig();
     if (saved) setConfig(saved);
+    setSwaps(loadSwaps());
     hydrated.current = true;
   }, []);
 
@@ -106,12 +111,56 @@ export default function PlanPage() {
   };
 
   // 生成結果を確定し「シフト表」タブに反映する
-  const confirm = () => {
+  const confirm = async () => {
     if (!schedule) return;
     saveConfirmed(schedule);
+    let msg =
+      "✓ 確定しました。「シフト表」タブにこのシフトが表示されます";
+    if (config.webhook_url) {
+      try {
+        const ym = config.start_date.slice(0, 7).replace("-", "年") + "月";
+        const res = await fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: config.webhook_url,
+            text: `【shift-craft】${ym}のシフトが確定しました`,
+          }),
+        });
+        msg += res.ok ? "（通知を送信しました）" : "（通知の送信に失敗しました）";
+      } catch {
+        msg += "（通知の送信に失敗しました）";
+      }
+    }
+    setNotice(msg);
+  };
+
+  // シフト交換の承認: 確定シフト上で2人の当日割当を入れ替える
+  const approveSwap = (req: SwapRequest) => {
+    const cur = loadConfirmed();
+    if (!cur) {
+      setNotice("先にシフトを確定してください（交換は確定シフトに適用されます）");
+      return;
+    }
+    const sched = cur.schedule;
+    const a = sched.staff.find((s) => s.id === req.from_id);
+    const b = sched.staff.find((s) => s.id === req.to_id);
+    if (!a || !b) return;
+    const tmp = a.assignments[req.date] ?? null;
+    a.assignments[req.date] = b.assignments[req.date] ?? null;
+    b.assignments[req.date] = tmp;
+    const { schedule: rec, violations: v } = recomputeAndValidate(sched, config);
+    saveConfirmed(rec);
+    setSwaps(setSwapStatus(req.id, "approved"));
     setNotice(
-      "✓ 確定しました。「シフト表」タブにこのシフトが表示されます（この端末のブラウザ内保存。共有・通知機能は v2 で対応予定）",
+      v.length
+        ? `交換を承認しました（⚠ 違反あり: ${v[0]} 他${v.length - 1}件。シフト表を確認してください）`
+        : "交換を承認し、確定シフトに反映しました",
     );
+  };
+
+  const rejectSwap = (req: SwapRequest) => {
+    setSwaps(setSwapStatus(req.id, "rejected"));
   };
 
   // Excel 出力。solver 未接続時は CSV にフォールバック
@@ -320,6 +369,58 @@ export default function PlanPage() {
               )}
             </>
           )}
+        </section>
+      )}
+
+      {/* 公平性の可視化 */}
+      {schedule && !infeasible && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">
+            公平性チェック（スタッフ間の偏り）
+          </h2>
+          <FairnessTable schedule={schedule} />
+        </section>
+      )}
+
+      {/* シフト交換申請の承認 */}
+      {swaps.some((r) => r.status === "pending") && (
+        <section className="mb-6 rounded-lg border border-sky-200 bg-sky-50/60 p-4">
+          <h2 className="text-sm font-semibold text-slate-700">
+            シフト交換申請（承認待ち）
+          </h2>
+          <div className="mt-2 space-y-2">
+            {swaps
+              .filter((r) => r.status === "pending")
+              .map((r) => {
+                const nameOf = (id: string) =>
+                  config.staff.find((s) => s.id === id)?.name ?? id;
+                return (
+                  <div
+                    key={r.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <span>
+                      {r.date.slice(5).replace("-", "/")}： {nameOf(r.from_id)} →{" "}
+                      {nameOf(r.to_id)} に交代希望
+                    </span>
+                    <span className="ml-auto flex gap-2">
+                      <button
+                        onClick={() => approveSwap(r)}
+                        className="rounded-md bg-brand px-3 py-1 text-xs font-semibold text-white hover:bg-brand-dark"
+                      >
+                        承認して反映
+                      </button>
+                      <button
+                        onClick={() => rejectSwap(r)}
+                        className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        却下
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
         </section>
       )}
 
