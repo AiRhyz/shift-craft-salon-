@@ -36,6 +36,9 @@ export function recomputeAndValidate(
 
   const staffCfg = new Map(config.staff.map((s) => [s.id, s]));
   const closed = new Set(config.closed_weekdays);
+  const holidays = new Set(config.holidays ?? []);
+  const isClosedDay = (date: string, weekday: number) =>
+    closed.has(weekday) || holidays.has(date);
   const offSet = new Set(config.off_requests.map(([sid, d]) => `${sid}:${d}`));
 
   // ---------- スタッフ単位の検証と集計 ----------
@@ -69,8 +72,10 @@ export function recomputeAndValidate(
       weekHours[wkKey] = (weekHours[wkKey] ?? 0) + h;
 
       // 個別違反チェック
-      if (closed.has(day.weekday)) {
-        violations.push(`${fmtDate(day.date)}: 定休日に ${s.name} が割り当てられています`);
+      if (isClosedDay(day.date, day.weekday)) {
+        violations.push(
+          `${fmtDate(day.date)}: 定休日・臨時店休日に ${s.name} が割り当てられています`,
+        );
       }
       if (offSet.has(`${s.id}:${day.date}`)) {
         violations.push(`${fmtDate(day.date)}: ${s.name} の希望休に出勤が入っています`);
@@ -107,7 +112,9 @@ export function recomputeAndValidate(
           );
         }
       }
-      const openDays = schedule.days.filter((d) => !closed.has(d.weekday)).length;
+      const openDays = schedule.days.filter(
+        (d) => !isClosedDay(d.date, d.weekday),
+      ).length;
       const maxWork = Math.max(0, openDays - cfg.off_days_required);
       if (assignedDays > maxWork) {
         violations.push(
@@ -125,7 +132,8 @@ export function recomputeAndValidate(
 
   // ---------- 日別の不足再計算（役職=合算、スキル=最大） ----------
   const newDays = schedule.days.map((day) => {
-    if (closed.has(day.weekday)) return { ...day, shortage: 0, shortage_detail: [] };
+    if (isClosedDay(day.date, day.weekday))
+      return { ...day, shortage: 0, shortage_detail: [] };
     const req = reqForWeekday(config, day.weekday);
     const detail: string[] = [];
     let rankSum = 0;

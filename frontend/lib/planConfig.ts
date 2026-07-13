@@ -34,6 +34,7 @@ export interface PlanConfig {
   start_date: string; // YYYY-MM-DD
   num_days: number;
   closed_weekdays: number[]; // 定休日
+  holidays: string[]; // 臨時店休日 (YYYY-MM-DD)
   store_open: string; // 営業開始 "09:00"
   store_close: string; // 営業終了 "21:00"
   patterns: PatternConfig[];
@@ -136,6 +137,7 @@ export function defaultConfig(): PlanConfig {
     start_date: start,
     num_days: numDays,
     closed_weekdays: [],
+    holidays: [],
     store_open: "09:00",
     store_close: "21:00",
     patterns: DEFAULT_PATTERNS,
@@ -199,6 +201,7 @@ export function buildSolveRequest(config: PlanConfig): Record<string, unknown> {
     start_date: config.start_date,
     num_days: config.num_days,
     closed_weekdays: config.closed_weekdays,
+    holidays: config.holidays,
     patterns: config.patterns.map((p) => ({
       id: p.id,
       label: `${p.label} ${p.start}-${p.end}`,
@@ -235,6 +238,7 @@ export function loadConfig(): PlanConfig | null {
       cfg.start_date = `${ym}-01`;
       cfg.num_days = daysInMonth(ym);
     }
+    cfg.holidays = cfg.holidays ?? [];
     cfg.store_open = cfg.store_open ?? "09:00";
     cfg.store_close = cfg.store_close ?? "21:00";
     cfg.budget_yen = cfg.budget_yen ?? null;

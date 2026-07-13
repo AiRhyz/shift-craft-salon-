@@ -48,6 +48,8 @@ type Props = { config: PlanConfig; onChange: (c: PlanConfig) => void };
 // ---------------------------------------------------------------- 店舗・期間
 
 function StoreEditor({ config, onChange }: Props) {
+  const [holidayInput, setHolidayInput] = useState("");
+
   const toggleClosed = (wd: number) => {
     const cur = config.closed_weekdays;
     onChange({
@@ -57,6 +59,21 @@ function StoreEditor({ config, onChange }: Props) {
         : [...cur, wd],
     });
   };
+
+  const addHoliday = () => {
+    if (!holidayInput || config.holidays.includes(holidayInput)) return;
+    onChange({
+      ...config,
+      holidays: [...config.holidays, holidayInput].sort(),
+    });
+    setHolidayInput("");
+  };
+
+  const removeHoliday = (d: string) =>
+    onChange({
+      ...config,
+      holidays: config.holidays.filter((x) => x !== d),
+    });
 
   return (
     <Section title="店舗設定・対象期間">
@@ -144,6 +161,46 @@ function StoreEditor({ config, onChange }: Props) {
               </label>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* 臨時店休日（お盆・年末年始・研修日など、特定日の休業） */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <label className="text-[11px] text-slate-500">
+          臨時店休日（お盆・年末年始・研修日など。誰も出勤せず、必要人数の対象外になります）
+        </label>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            className={`${inputCls} w-40`}
+            value={holidayInput}
+            onChange={(e) => setHolidayInput(e.target.value)}
+          />
+          <button
+            onClick={addHoliday}
+            disabled={!holidayInput}
+            className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-40"
+          >
+            追加
+          </button>
+          {config.holidays.map((d) => (
+            <span
+              key={d}
+              className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs text-violet-700"
+            >
+              {d.slice(5).replace("-", "/")} 店休
+              <button
+                onClick={() => removeHoliday(d)}
+                className="ml-0.5 opacity-60 hover:opacity-100"
+                aria-label="削除"
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          {config.holidays.length === 0 && (
+            <span className="text-xs text-slate-400">なし</span>
+          )}
         </div>
       </div>
     </Section>
