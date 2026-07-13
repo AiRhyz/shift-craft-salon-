@@ -11,6 +11,7 @@ const PATTERN_STYLE: Record<string, { label: string; cls: string }> = {
 
 export function ShiftGrid({ schedule }: { schedule: Schedule }) {
   const { days, staff, patterns } = schedule;
+  const hasShortage = days.some((d) => (d.shortage ?? 0) > 0);
 
   return (
     <div className="space-y-3">
@@ -68,9 +69,38 @@ export function ShiftGrid({ schedule }: { schedule: Schedule }) {
                 })}
               </tr>
             ))}
+            {hasShortage && (
+              <tr className="border-t-2 border-rose-200 bg-rose-50/60">
+                <td className="sticky left-0 z-10 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                  不足人数
+                </td>
+                {days.map((d) => {
+                  const n = d.shortage ?? 0;
+                  return (
+                    <td key={d.date} className="px-1 py-1 text-center">
+                      {n > 0 ? (
+                        <span
+                          className="text-sm font-bold text-rose-600"
+                          title={(d.shortage_detail ?? []).join(" / ")}
+                        >
+                          -{n}
+                        </span>
+                      ) : (
+                        <span className="text-slate-200">0</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+      {hasShortage && (
+        <div className="text-xs text-rose-500">
+          「不足人数」行の赤字はその日に必要人数へ届かない人数です（数字にカーソルを当てると内訳を表示）
+        </div>
+      )}
 
       {/* 凡例 */}
       <div className="flex flex-wrap gap-3 text-xs text-slate-500">

@@ -97,8 +97,10 @@ export default function PlanPage() {
   };
 
   const isSample = schedule?.meta.source.startsWith("bundled sample");
+  const isBestEffort = schedule?.meta.status === "BEST_EFFORT";
   const infeasible =
-    schedule && !["OPTIMAL", "FEASIBLE"].includes(schedule.meta.status);
+    schedule &&
+    !["OPTIMAL", "FEASIBLE", "BEST_EFFORT"].includes(schedule.meta.status);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -175,8 +177,29 @@ export default function PlanPage() {
             </div>
           ) : (
             <>
+              {isBestEffort && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                  <p className="font-semibold">
+                    ⚠ 全条件は満たせなかったため、公休・希望休・連勤上限などスタッフの条件を優先し、
+                    人員不足（合計 {schedule.meta.shortage_total ?? 0} 人日）を許容したシフトです
+                  </p>
+                  <p className="mt-1">
+                    不足日はシフト表下部の「不足人数」行に赤字で表示しています。
+                    ヘルプ要員の手配や必要人数の見直しをご検討ください。
+                  </p>
+                  {schedule.meta.diagnosis?.length ? (
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs">
+                      {schedule.meta.diagnosis.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                <span>✓ {schedule.meta.status}</span>
+                <span>
+                  {isBestEffort ? "△ 不足許容で生成" : `✓ ${schedule.meta.status}`}
+                </span>
                 <span>求解 {schedule.meta.solve_time_s}s</span>
                 <span>NGペア同時出勤 {schedule.meta.ng_soft_violations}回</span>
                 <span>推奨ペア同時出勤 {schedule.meta.recommend_together}回</span>

@@ -1,8 +1,13 @@
 """CP-SAT シフト求解エンジン（入力駆動）。
 
-制約仕様書 v0.1 の H0–H6・S1–S7 を実装。制約番号はコメントに付す。
-INFEASIBLE 時は主要ハード制約をスラック付きで緩和した診断モデルを解き直し、
-違反が必要になった箇所（人数不足の日・希望休の衝突等）を特定して返す（仕様 §7）。
+制約仕様書 v0.1 の H0–H7・S1–S7 を実装。3つのモードで動く:
+
+- strict     : 全ハード制約を遵守（通常求解）
+- besteffort : strict が INFEASIBLE のとき自動発動。公休・希望休・連勤・労働時間など
+               スタッフ側の条約は死守したまま、必要人数（H1/H1'/H5）のみ緩和し、
+               不足人日を最小化したシフトを返す。不足は日別に shortage として報告
+- diagnose   : 原因診断用。主要ハード制約すべてにスラックを張り、最小違反解から
+               「どの制約を破らないと成立しないか」を列挙する（仕様 §7）
 """
 from __future__ import annotations
 
@@ -19,17 +24,28 @@ SKILL_JP = {
     "shampoo": "シャンプー", "reception": "受付", "closer": "店締め",
 }
 
+# besteffort での不足1人日あたりの減点。全ソフト制約を確実に支配する大きさ
+SHORTAGE_PENALTY = 1000
+
+
+@dataclass
+class _Slack:
+    var: cp_model.IntVar
+    day: str | None      # 対象日(ISO)。日単位でない違反(公休不足等)は None
+    short: str           # 日別表示用 例: "アシスタント{v}名不足"
+    full: str            # 診断リスト用 例: "2026-08-03: アシスタントが{v}名不足"
+    kind: str = "other"  # rank / skill / other（不足人数の重複補正用）
+
 
 @dataclass
 class _Ctx:
-    """モデルと変数群。relax=True のとき slacks に (変数, ラベル雛形) が入る。"""
     model: cp_model.CpModel
     x: dict[tuple[str, str, str], cp_model.IntVar]
     y: dict[tuple[str, str], cp_model.IntVar]
     days: list[date]
     open_days: list[date]
     weekend: set[date]
-    slacks: list[tuple[cp_model.IntVar, str]] = field(default_factory=list)
+    slacks: list[_Slack] = field(default_factory=list)
 
 
 def _resolve_days(req: SolveRequest) -> list[date]:
@@ -38,14 +54,16 @@ def _resolve_days(req: SolveRequest) -> list[date]:
     return [req.start_date + timedelta(days=i) for i in range(req.num_days)]
 
 
-def _build(req: SolveRequest, relax: bool) -> _Ctx:
+def _build(req: SolveRequest, mode: str) -> _Ctx:
     """決定変数とハード制約を構築する。
 
-    relax=True では H1/H1'/H2/H4c/H5/H6 にスラック変数を導入し、
-    「どの制約を破れば解が存在するか」を診断できるようにする。
-    H0/H0'/H3/H4a/H4b は物理・法令制約として緩和しない
-    （需要側スラックが人数不足として吸収するため診断は可能）。
+    - demand側(H1/H1'/H5)のスラック: besteffort / diagnose で有効
+    - staff側(H2/H4c/H6)のスラック: diagnose のみ有効
+    - H0/H0'/H3/H4a/H4b は常にハード（物理・法令制約）
     """
+    demand_slack = mode in ("besteffort", "diagnose")
+    staff_slack = mode == "diagnose"
+
     days = _resolve_days(req)
     closed_wd = set(req.closed_weekdays)
     holidays = set(req.holidays)
@@ -60,9 +78,10 @@ def _build(req: SolveRequest, relax: bool) -> _Ctx:
     ctx = _Ctx(model=model, x={}, y={}, days=days, open_days=open_days,
                weekend=weekend)
 
-    def slack(ub: int, name: str, label: str) -> cp_model.IntVar:
+    def add_slack(ub: int, name: str, day: str | None, short: str, full: str,
+                  kind: str = "other"):
         v = model.NewIntVar(0, ub, name)
-        ctx.slacks.append((v, label))
+        ctx.slacks.append(_Slack(var=v, day=day, short=short, full=full, kind=kind))
         return v
 
     # --- 決定変数 x[s,d,p]（営業日のみ）/ H0': 勤務可能パターンのみ ---
@@ -85,50 +104,53 @@ def _build(req: SolveRequest, relax: bool) -> _Ctx:
 
     # H1 / H1': 必要人数
     for d in open_days:
+        diso = d.isoformat()
         for rank, need in req.requirements.by_rank.items():
             if need <= 0:
                 continue
-            total = sum(ctx.y[(s.id, d.isoformat())] for s in req.staff
-                        if s.rank == rank)
-            if relax:
-                sv = slack(need, f"sl_rank_{rank}_{d.isoformat()}",
-                           f"{d.isoformat()}: {RANK_JP.get(rank, rank)}が{{v}}名不足")
+            total = sum(ctx.y[(s.id, diso)] for s in req.staff if s.rank == rank)
+            if demand_slack:
+                jp = RANK_JP.get(rank, rank)
+                sv = add_slack(need, f"sl_rank_{rank}_{diso}", diso,
+                               f"{jp}{{v}}名不足", f"{diso}: {jp}が{{v}}名不足",
+                               kind="rank")
                 model.Add(total + sv >= need)
             else:
                 model.Add(total >= need)
         for skill, need in req.requirements.by_skill.items():
             if need <= 0:
                 continue
-            total = sum(ctx.y[(s.id, d.isoformat())] for s in req.staff
-                        if skill in s.skills)
-            if relax:
-                sv = slack(need, f"sl_skill_{skill}_{d.isoformat()}",
-                           f"{d.isoformat()}: {SKILL_JP.get(skill, skill)}要員が{{v}}名不足")
+            total = sum(ctx.y[(s.id, diso)] for s in req.staff if skill in s.skills)
+            if demand_slack:
+                jp = SKILL_JP.get(skill, skill)
+                sv = add_slack(need, f"sl_skill_{skill}_{diso}", diso,
+                               f"{jp}要員{{v}}名不足", f"{diso}: {jp}要員が{{v}}名不足",
+                               kind="skill")
                 model.Add(total + sv >= need)
             else:
                 model.Add(total >= need)
 
-    # H2: 希望休
+    # H2: 希望休（besteffort でも死守）
     for sid, d in req.off_requests:
         key = (sid, d.isoformat())
         if key not in ctx.y:
             continue
-        if relax:
-            # y 自体を違反量として登録（1 なら希望休を破って出勤）
-            ctx.slacks.append(
-                (ctx.y[key],
-                 f"{d.isoformat()}: {name_of.get(sid, sid)}の希望休と衝突（出勤が必要）"))
+        if staff_slack:
+            ctx.slacks.append(_Slack(
+                var=ctx.y[key], day=d.isoformat(),
+                short=f"{name_of.get(sid, sid)}の希望休と衝突",
+                full=f"{d.isoformat()}: {name_of.get(sid, sid)}の希望休と衝突（出勤が必要）"))
         else:
             model.Add(ctx.y[key] == 0)
 
-    # H3: 連勤上限（緩和しない）
+    # H3: 連勤上限（常にハード）
     c = req.max_consecutive
     for s in req.staff:
         for i in range(len(days) - c):
             window = days[i:i + c + 1]
             model.Add(sum(ctx.y[(s.id, d.isoformat())] for d in window) <= c)
 
-    # H4a/H4b: 週・月の上限労働時間（緩和しない）
+    # H4a/H4b: 週・月の上限労働時間（常にハード）
     weeks: dict[tuple[int, int], list[date]] = {}
     for d in open_days:
         iso = d.isocalendar()
@@ -146,41 +168,48 @@ def _build(req: SolveRequest, relax: bool) -> _Ctx:
             if week_terms:
                 model.Add(sum(week_terms) <= round(s.max_hours_week * 60))
 
-    # H4c: 公休日数
+    # H4c: 公休日数（besteffort でも死守）
     n_open = len(open_days)
     for s in req.staff:
         max_work = max(0, n_open - s.off_days_required)
         total = sum(ctx.y[(s.id, d.isoformat())] for d in open_days)
-        if relax:
-            sv = slack(max(1, s.off_days_required),
-                       f"sl_rest_{s.id}",
-                       f"{s.name}: 公休{{v}}日分が確保できない（出勤日数超過が必要）")
+        if staff_slack:
+            sv = add_slack(max(1, s.off_days_required), f"sl_rest_{s.id}", None,
+                           f"{s.name}の公休{{v}}日不足",
+                           f"{s.name}: 公休{{v}}日分が確保できない（出勤日数超過が必要）")
             model.Add(total <= max_work + sv)
         else:
             model.Add(total <= max_work)
 
-    # H5: 店締め責任者
+    # H5: 店締め責任者。by_skill に closer 要件があれば H1' と重複するため
+    # スラックは作るが報告リストには載せない（ダブルカウント防止）
+    closer_in_skill = req.requirements.by_skill.get("closer", 0) >= 1
     closers = [s for s in req.staff if "closer" in s.skills]
     for d in open_days:
-        total = sum(ctx.y[(s.id, d.isoformat())] for s in closers)
-        if relax:
-            sv = slack(1, f"sl_closer_{d.isoformat()}",
-                       f"{d.isoformat()}: 店締め責任者を配置できない")
+        diso = d.isoformat()
+        total = sum(ctx.y[(s.id, diso)] for s in closers)
+        if demand_slack:
+            if closer_in_skill:
+                sv = model.NewIntVar(0, 1, f"sl_closer_{diso}")  # 未報告スラック
+            else:
+                sv = add_slack(1, f"sl_closer_{diso}", diso,
+                               "店締め責任者不在",
+                               f"{diso}: 店締め責任者を配置できない", kind="skill")
             model.Add(total + sv >= 1)
         else:
             if closers:
                 model.Add(total >= 1)
-            # closers が 0 名なら relax 側で全日不足として検出される
 
-    # H6: ハードNGペア
+    # H6: ハードNGペア（besteffort でも死守）
     for a, b in req.pairs.ng_hard:
         for d in days:
             ka, kb = (a, d.isoformat()), (b, d.isoformat())
             if ka in ctx.y and kb in ctx.y:
-                if relax:
-                    sv = slack(1, f"sl_ng_{a}_{b}_{d.isoformat()}",
-                               f"{d.isoformat()}: ハードNGペア"
-                               f"({name_of.get(a, a)}×{name_of.get(b, b)})の同時出勤が必要")
+                if staff_slack:
+                    sv = add_slack(1, f"sl_ng_{a}_{b}_{d.isoformat()}", d.isoformat(),
+                                   "ハードNGペア同時出勤",
+                                   f"{d.isoformat()}: ハードNGペア"
+                                   f"({name_of.get(a, a)}×{name_of.get(b, b)})の同時出勤が必要")
                     model.Add(ctx.y[ka] + ctx.y[kb] <= 1 + sv)
                 else:
                     model.Add(ctx.y[ka] + ctx.y[kb] <= 1)
@@ -188,42 +217,16 @@ def _build(req: SolveRequest, relax: bool) -> _Ctx:
     return ctx
 
 
-def _diagnose(req: SolveRequest) -> list[str]:
-    """緩和モデルを最小違反で解き、破らざるを得なかった制約を列挙する。"""
-    ctx = _build(req, relax=True)
-    ctx.model.Minimize(sum(v for v, _ in ctx.slacks))
-    solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = min(req.max_seconds, 5.0)
-    solver.parameters.num_search_workers = 8
-    status = solver.Solve(ctx.model)
-    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        return ["制約が複雑に競合しており、原因を自動特定できませんでした。"
-                "必要人数・上限労働時間・連勤上限を見直してください。"]
-    causes = []
-    for v, label in ctx.slacks:
-        val = solver.Value(v)
-        if val > 0:
-            causes.append(label.replace("{v}", str(val)))
-    if not causes:
-        causes.append("緩和モデルでは解が存在します。連勤上限・労働時間上限との"
-                      "組み合わせが原因の可能性があります。")
-    return causes[:20]  # 表示過多を防ぐ
-
-
-def solve(req: SolveRequest) -> Schedule:
-    ctx = _build(req, relax=False)
+def _add_soft_terms(ctx: _Ctx, req: SolveRequest):
+    """ソフト制約 S1–S7 の目的項を構築する。"""
     model, x, y = ctx.model, ctx.x, ctx.y
     days, open_days, weekend = ctx.days, ctx.open_days, ctx.weekend
-    pattern_ids = [p.id for p in req.patterns]
     pattern_min = {p.id: round(p.hours * 60) for p in req.patterns}
     late_ids = {p.id for p in req.patterns if p.is_late}
-
-    # ---------------- ソフト制約（目的項）----------------
-    obj: list = []
     w = req.weights
+    obj: list = []
 
     def count_range(count_of, ub: int, prefix: str):
-        """スタッフ間の回数 range（max-min）変数を作る。"""
         vs = {}
         for s in req.staff:
             av = model.NewIntVar(0, ub, f"{prefix}_{s.id}")
@@ -267,7 +270,7 @@ def solve(req: SolveRequest) -> Schedule:
         model.Add(z >= ya + yb - 1)
         return z
 
-    # S5: ソフトNGペア（減点）
+    # S5 / S4: 相性ペア
     ng_zs = []
     for a, b in req.pairs.ng_soft:
         for d in days:
@@ -276,8 +279,6 @@ def solve(req: SolveRequest) -> Schedule:
                 z = pair_and(y[ka], y[kb], f"ng_{a}_{b}_{d.isoformat()}")
                 obj.append(-w.s5_ng_soft * z)
                 ng_zs.append(z)
-
-    # S4: 推奨/OJTペア（加点）
     rec_zs = []
     for a, b in req.pairs.recommend:
         for d in days:
@@ -287,7 +288,7 @@ def solve(req: SolveRequest) -> Schedule:
                 obj.append(w.s4_recommend * z)
                 rec_zs.append(z)
 
-    # S6: 希望勤務パターン一致（加点）
+    # S6: 希望勤務パターン一致
     want_lits = []
     for sid, d, p in req.want_requests:
         var = x.get((sid, d.isoformat(), p))
@@ -295,7 +296,7 @@ def solve(req: SolveRequest) -> Schedule:
             obj.append(w.s6_want * var)
             want_lits.append(var)
 
-    # S7: 人件費の予算内収束（予算超過を千円単位で減点）
+    # S7: 人件費の予算内収束
     wage_by_staff = {s.id: s.hourly_wage for s in req.staff}
     cost_terms = []
     for (sid, diso, p), var in x.items():
@@ -311,10 +312,22 @@ def solve(req: SolveRequest) -> Schedule:
         model.AddDivisionEquality(over_k, over, 1000)
         obj.append(-w.s7_over_budget * over_k)
 
+    return obj, ng_zs, rec_zs, want_lits
+
+
+def _run(req: SolveRequest, mode: str) -> Schedule:
+    """指定モードで求解し Schedule を返す。"""
+    ctx = _build(req, mode)
+    model = ctx.model
+    obj, ng_zs, rec_zs, want_lits = _add_soft_terms(ctx, req)
+
+    # besteffort: 不足人日の最小化を最優先（大きな減点で支配させる）
+    if mode == "besteffort" and ctx.slacks:
+        obj = obj + [-SHORTAGE_PENALTY * sl.var for sl in ctx.slacks]
+
     if obj:
         model.Maximize(sum(obj))
 
-    # ---------------- 求解 ----------------
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = req.max_seconds
     solver.parameters.num_search_workers = 8
@@ -322,8 +335,29 @@ def solve(req: SolveRequest) -> Schedule:
     status_name = solver.StatusName(status)
     feasible = status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
-    # INFEASIBLE なら原因診断（仕様 §7）
-    diagnosis = _diagnose(req) if status == cp_model.INFEASIBLE else None
+    pattern_ids = [p.id for p in req.patterns]
+    pattern_min = {p.id: round(p.hours * 60) for p in req.patterns}
+
+    # 日別の不足（besteffort のみ値が入る）
+    shortage_by_day: dict[str, int] = {}
+    detail_by_day: dict[str, list[str]] = {}
+    if feasible and mode == "besteffort":
+        # 「最低何人の応援が必要か」= 役職不足の合計 と スキル不足の最大値 の大きい方
+        # （1人が複数スキルを兼ねられるため、スキル系は合算せず最大で見る）
+        rank_sum: dict[str, int] = {}
+        skill_max: dict[str, int] = {}
+        for sl in ctx.slacks:
+            val = solver.Value(sl.var)
+            if val <= 0 or sl.day is None:
+                continue
+            detail_by_day.setdefault(sl.day, []).append(
+                sl.short.replace("{v}", str(val)))
+            if sl.kind == "rank":
+                rank_sum[sl.day] = rank_sum.get(sl.day, 0) + val
+            else:
+                skill_max[sl.day] = max(skill_max.get(sl.day, 0), val)
+        for day in set(rank_sum) | set(skill_max):
+            shortage_by_day[day] = max(rank_sum.get(day, 0), skill_max.get(day, 0))
 
     staff_out = []
     total_cost = 0.0
@@ -332,14 +366,14 @@ def solve(req: SolveRequest) -> Schedule:
         assignments: dict[str, str | None] = {}
         hours = 0.0
         wk = 0
-        for d in days:
+        for d in ctx.days:
             chosen = None
             for p in pattern_ids:
-                var = x.get((s.id, d.isoformat(), p))
+                var = ctx.x.get((s.id, d.isoformat(), p))
                 if var is not None and feasible and solver.Value(var) == 1:
                     chosen = p
                     hours += pattern_min[p] / 60.0
-                    if d in weekend:
+                    if d in ctx.weekend:
                         wk += 1
                     break
             assignments[d.isoformat()] = chosen
@@ -359,11 +393,57 @@ def solve(req: SolveRequest) -> Schedule:
         "recommend_together": sum(solver.Value(z) for z in rec_zs) if feasible else 0,
         "want_met": sum(solver.Value(v) for v in want_lits) if feasible else 0,
         "estimated_cost_yen": round(total_cost) if (feasible and has_wage) else None,
-        "diagnosis": diagnosis,
+        "diagnosis": None,
+        "shortage_total": sum(shortage_by_day.values()),
     }
-    days_out = [{"date": d.isoformat(), "weekday": d.weekday(),
-                 "is_weekend": d in weekend} for d in days]
+    days_out = [{
+        "date": d.isoformat(), "weekday": d.weekday(),
+        "is_weekend": d in ctx.weekend,
+        "shortage": shortage_by_day.get(d.isoformat(), 0),
+        "shortage_detail": detail_by_day.get(d.isoformat(), []),
+    } for d in ctx.days]
     patterns_out = [{"id": p.id, "label": p.label, "hours": p.hours,
                      "is_late": p.is_late} for p in req.patterns]
 
     return Schedule(meta=meta, patterns=patterns_out, days=days_out, staff=staff_out)
+
+
+def _diagnose(req: SolveRequest) -> list[str]:
+    """緩和モデルを最小違反で解き、破らざるを得なかった制約を列挙する。"""
+    ctx = _build(req, "diagnose")
+    ctx.model.Minimize(sum(sl.var for sl in ctx.slacks))
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = min(req.max_seconds, 5.0)
+    solver.parameters.num_search_workers = 8
+    status = solver.Solve(ctx.model)
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return ["制約が複雑に競合しており、原因を自動特定できませんでした。"
+                "必要人数・上限労働時間・連勤上限を見直してください。"]
+    causes = []
+    for sl in ctx.slacks:
+        val = solver.Value(sl.var)
+        if val > 0:
+            causes.append(sl.full.replace("{v}", str(val)))
+    if not causes:
+        causes.append("緩和モデルでは解が存在します。連勤上限・労働時間上限との"
+                      "組み合わせが原因の可能性があります。")
+    return causes[:20]
+
+
+def solve(req: SolveRequest) -> Schedule:
+    """通常求解 → INFEASIBLE なら診断＋ベストエフォート生成に自動フォールバック。"""
+    sched = _run(req, "strict")
+    if sched.meta.status != "INFEASIBLE":
+        return sched
+
+    diagnosis = _diagnose(req)
+    best = _run(req, "besteffort")
+    if best.meta.status in ("OPTIMAL", "FEASIBLE"):
+        # 公休等は守った上で人員不足を許容した解
+        best.meta.status = "BEST_EFFORT"
+        best.meta.diagnosis = diagnosis
+        return best
+
+    # スタッフ側条件だけでも矛盾している（公休 > 営業日数 等）
+    sched.meta.diagnosis = diagnosis
+    return sched

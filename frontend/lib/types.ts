@@ -12,6 +12,8 @@ export interface ScheduleDay {
   date: string; // ISO (YYYY-MM-DD)
   weekday: number; // 0=月 ... 6=日
   is_weekend: boolean;
+  shortage?: number; // 不足人日（BEST_EFFORT 時）
+  shortage_detail?: string[]; // 例: "アシスタント1名不足"
 }
 
 export interface ScheduleStaff {
@@ -33,7 +35,8 @@ export interface ScheduleMeta {
   recommend_together: number;
   want_met: number;
   estimated_cost_yen?: number | null; // 概算人件費（時給設定時のみ）
-  diagnosis?: string[] | null; // INFEASIBLE 時の原因診断
+  diagnosis?: string[] | null; // INFEASIBLE/BEST_EFFORT 時の原因診断
+  shortage_total?: number; // 不足人日の合計（BEST_EFFORT 時）
 }
 
 export interface Schedule {

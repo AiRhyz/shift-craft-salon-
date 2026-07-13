@@ -60,8 +60,21 @@ def build_workbook(schedule: Schedule) -> Workbook:
             if not p:
                 c.font = _off_font
 
+    # 不足行（BEST_EFFORT 時のみ）
+    extra_rows = 0
+    if any(d.shortage > 0 for d in schedule.days):
+        r = len(schedule.staff) + 3
+        c0 = ws.cell(row=r, column=1, value="不足")
+        c0.font = Font(bold=True, color="C62828")
+        for j, d in enumerate(schedule.days, start=2):
+            if d.shortage > 0:
+                c = ws.cell(row=r, column=j, value=-d.shortage)
+                c.font = Font(bold=True, color="C62828")
+                c.alignment = _center
+        extra_rows = 1
+
     # 凡例
-    legend_row = len(schedule.staff) + 4
+    legend_row = len(schedule.staff) + extra_rows + 4
     ws.cell(row=legend_row, column=1, value="凡例:").font = _bold
     for k, p in enumerate(schedule.patterns):
         ws.cell(row=legend_row + 1 + k, column=1,

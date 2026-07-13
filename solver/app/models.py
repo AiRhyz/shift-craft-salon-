@@ -89,6 +89,8 @@ class DayOut(BaseModel):
     date: str
     weekday: int
     is_weekend: bool
+    shortage: int = 0                                   # 不足人日（BEST_EFFORT 時）
+    shortage_detail: list[str] = Field(default_factory=list)  # 例: "アシスタント1名不足"
 
 
 class StaffOut(BaseModel):
@@ -110,7 +112,8 @@ class MetaOut(BaseModel):
     recommend_together: int
     want_met: int
     estimated_cost_yen: int | None = None   # 概算人件費（時給設定時のみ）
-    diagnosis: list[str] | None = None       # INFEASIBLE 時の原因診断
+    diagnosis: list[str] | None = None       # INFEASIBLE/BEST_EFFORT 時の原因診断
+    shortage_total: int = 0                  # 不足人日の合計（BEST_EFFORT 時）
 
 
 class Schedule(BaseModel):
