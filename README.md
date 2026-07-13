@@ -48,6 +48,7 @@ shift-craft-salon/
 
 - [要件定義書 v1.0](docs/requirements-v1.0.md)
 - [制約仕様書 v0.1](docs/constraint-spec.md)
+- [デプロイ手順（Vercel / Cloud Run）](docs/deployment.md)
 
 ## リリース計画
 
@@ -64,5 +65,7 @@ shift-craft-salon/
 - ✅ solver PoC（CP-SAT で 5名×14日を 0.02 秒未満で最適求解、実現性確認済み）
 - ✅ frontend MVP（Next.js、シフト表表示、Vercel デプロイ済み）
 - ✅ solver の FastAPI 化（`/solve`・`/health`・`/solve/demo`、Dockerfile で Cloud Run 対応）
-- ⬜ solver の Cloud Run デプロイ＋フロントの `SOLVER_API_URL` 接続
-- ⬜ マスタ管理・希望収集フォームの実装（現状は入力データ固定）
+- ✅ マスタ管理・希望収集UI（`/plan`：スタッフ・必要人数・相性ペア・希望休・定休日を編集して生成）
+- ✅ solver 接続プロキシ（`/api/solve`。E2E検証済み、solver 停止時はサンプルへフォールバック）
+- ⬜ solver の Cloud Run デプロイ（[docs/deployment.md](docs/deployment.md) の手順で数コマンド）
+- ⬜ スタッフ本人によるスマホ希望提出・確定通知（v2）、DB永続化（現状はブラウザ保存）

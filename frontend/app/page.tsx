@@ -1,3 +1,4 @@
+import { Nav } from "@/components/Nav";
 import { ShiftGrid } from "@/components/ShiftGrid";
 import { getSchedule } from "@/lib/schedule";
 
@@ -33,17 +34,19 @@ export default async function Home() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      <Nav current="home" />
       <header className="mb-6">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-slate-900">
-            shift-craft-salon
+            確定シフト
           </h1>
           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
             v1 MVP
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">
-          美容室向けシフト自動作成ツール — 制約ベース最適化（CP-SAT）による勤務割当
+          美容室向けシフト自動作成ツール — 制約ベース最適化（CP-SAT）による勤務割当。
+          条件の編集と生成は「シフト作成」タブから。
         </p>
       </header>
 
