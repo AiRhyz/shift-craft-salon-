@@ -14,6 +14,8 @@ import {
   RANKS,
   SKILLS,
   WEEKDAYS_JP,
+  applyMonth,
+  daysInMonth,
   patternHours,
   patternWarning,
 } from "@/lib/planConfig";
@@ -78,29 +80,19 @@ function StoreEditor({ config, onChange }: Props) {
           />
         </div>
         <div>
-          <label className="text-[11px] text-slate-500">開始日</label>
+          <label className="text-[11px] text-slate-500">対象月</label>
           <input
-            type="date"
+            type="month"
             className={inputCls}
-            value={config.start_date}
-            onChange={(e) => onChange({ ...config, start_date: e.target.value })}
+            value={config.start_date.slice(0, 7)}
+            onChange={(e) => {
+              if (e.target.value) onChange(applyMonth(config, e.target.value));
+            }}
           />
-        </div>
-        <div>
-          <label className="text-[11px] text-slate-500">日数</label>
-          <input
-            type="number"
-            min={1}
-            max={31}
-            className={numCls}
-            value={config.num_days}
-            onChange={(e) =>
-              onChange({
-                ...config,
-                num_days: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
-              })
-            }
-          />
+          <div className="mt-0.5 text-[10px] text-slate-400">
+            1日〜{daysInMonth(config.start_date.slice(0, 7))}日（
+            {config.num_days}日間）で作成
+          </div>
         </div>
         <div>
           <label className="text-[11px] text-slate-500">連勤上限</label>

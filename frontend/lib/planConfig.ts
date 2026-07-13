@@ -93,6 +93,21 @@ export function patternWarning(
   return null;
 }
 
+/** "YYYY-MM" の月の日数 */
+export function daysInMonth(ym: string): number {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+/** 設定を指定月（1日〜月末）に切り替える */
+export function applyMonth(config: PlanConfig, ym: string): PlanConfig {
+  return {
+    ...config,
+    start_date: `${ym}-01`,
+    num_days: daysInMonth(ym),
+  };
+}
+
 export const DEFAULT_PATTERNS: PatternConfig[] = [
   { id: "early", label: "早番", start: "09:00", end: "18:00", break_min: 60, is_late: false },
   { id: "late", label: "遅番", start: "12:00", end: "21:00", break_min: 60, is_late: true },
@@ -103,8 +118,9 @@ export const DEFAULT_PATTERNS: PatternConfig[] = [
 // ---------------------------------------------------------------- 既定値
 
 export function defaultConfig(): PlanConfig {
+  // 1か月単位（1日〜月末）を既定とする
   const start = "2026-08-01";
-  const numDays = 14;
+  const numDays = daysInMonth("2026-08");
 
   const offRequests: [string, string][] = [];
   const base = new Date(`${start}T00:00:00`);
@@ -127,32 +143,32 @@ export function defaultConfig(): PlanConfig {
       {
         id: "s1", name: "佐藤(店長)", rank: "stylist",
         skills: ["cut", "color", "perm", "closer"],
-        max_hours_month: 160, max_hours_week: 40, off_days_required: 4,
+        max_hours_month: 160, max_hours_week: 40, off_days_required: 8,
         hourly_wage: 2000, avail_patterns: null, unavailable_weekdays: [],
       },
       {
         id: "s2", name: "鈴木", rank: "stylist",
         skills: ["cut", "color", "closer"],
-        max_hours_month: 160, max_hours_week: 40, off_days_required: 4,
+        max_hours_month: 160, max_hours_week: 40, off_days_required: 8,
         hourly_wage: 1800, avail_patterns: null, unavailable_weekdays: [],
       },
       {
         id: "s3", name: "高橋", rank: "junior",
         skills: ["cut", "color", "shampoo"],
-        max_hours_month: 140, max_hours_week: 36, off_days_required: 5,
+        max_hours_month: 140, max_hours_week: 36, off_days_required: 9,
         hourly_wage: 1400, avail_patterns: null, unavailable_weekdays: [],
       },
       {
         id: "s4", name: "田中(パート)", rank: "assistant",
         skills: ["shampoo", "reception"],
-        max_hours_month: 80, max_hours_week: 24, off_days_required: 8,
+        max_hours_month: 80, max_hours_week: 24, off_days_required: 18,
         hourly_wage: 1150, avail_patterns: ["early", "short"],
         unavailable_weekdays: [],
       },
       {
         id: "s5", name: "伊藤", rank: "assistant",
         skills: ["shampoo", "reception", "color"],
-        max_hours_month: 150, max_hours_week: 40, off_days_required: 5,
+        max_hours_month: 150, max_hours_week: 40, off_days_required: 9,
         hourly_wage: 1200, avail_patterns: null, unavailable_weekdays: [],
       },
     ],
@@ -213,6 +229,12 @@ export function loadConfig(): PlanConfig | null {
     if (!raw) return null;
     const cfg = JSON.parse(raw) as PlanConfig;
     // 旧バージョン保存データのマイグレーション
+    // 期間は月単位（1日〜月末）に正規化
+    if (cfg.start_date) {
+      const ym = cfg.start_date.slice(0, 7);
+      cfg.start_date = `${ym}-01`;
+      cfg.num_days = daysInMonth(ym);
+    }
     cfg.store_open = cfg.store_open ?? "09:00";
     cfg.store_close = cfg.store_close ?? "21:00";
     cfg.budget_yen = cfg.budget_yen ?? null;

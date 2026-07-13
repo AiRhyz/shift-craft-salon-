@@ -1,4 +1,4 @@
-"""デモ用の SolveRequest。PoC のダミーデータ（5名×14日）と等価。
+"""デモ用の SolveRequest。PoC のダミーデータ（5名×31日(1か月)）と等価。
 
 /solve をボディ無しで叩いたとき、または /solve/demo で使う。frontend の
 同梱サンプル（sample-schedule.json）と同じ解が得られる。
@@ -18,7 +18,7 @@ from .models import (
 
 def demo_request() -> SolveRequest:
     start = date(2026, 8, 1)  # 土曜起点
-    days = [start.fromordinal(start.toordinal() + i) for i in range(14)]
+    days = [start.fromordinal(start.toordinal() + i) for i in range(31)]
 
     patterns = [
         PatternIn(id="early", label="早番 9:00-18:00", hours=8.0, is_late=False),
@@ -30,20 +30,20 @@ def demo_request() -> SolveRequest:
     staff = [
         StaffIn(id="s1", name="佐藤(店長)", rank="stylist",
                 skills=["cut", "color", "perm", "closer"],
-                max_hours_month=160, max_hours_week=40, off_days_required=4, hourly_wage=2000, popular=3),
+                max_hours_month=160, max_hours_week=40, off_days_required=8, hourly_wage=2000, popular=3),
         StaffIn(id="s2", name="鈴木", rank="stylist",
                 skills=["cut", "color", "closer"],
-                max_hours_month=160, max_hours_week=40, off_days_required=4, hourly_wage=1800, popular=2),
+                max_hours_month=160, max_hours_week=40, off_days_required=8, hourly_wage=1800, popular=2),
         StaffIn(id="s3", name="高橋", rank="junior",
                 skills=["cut", "color", "shampoo"],
-                max_hours_month=140, max_hours_week=36, off_days_required=5, hourly_wage=1400, popular=1),
+                max_hours_month=140, max_hours_week=36, off_days_required=9, hourly_wage=1400, popular=1),
         StaffIn(id="s4", name="田中(パート)", rank="assistant",
                 skills=["shampoo", "reception"],
-                max_hours_month=80, max_hours_week=24, off_days_required=8, hourly_wage=1150,
+                max_hours_month=80, max_hours_week=24, off_days_required=18, hourly_wage=1150,
                 avail_patterns=["early", "short"]),
         StaffIn(id="s5", name="伊藤", rank="assistant",
                 skills=["shampoo", "reception", "color"],
-                max_hours_month=150, max_hours_week=40, off_days_required=5, hourly_wage=1200),
+                max_hours_month=150, max_hours_week=40, off_days_required=9, hourly_wage=1200),
     ]
 
     requirements = RequirementsIn(
@@ -71,7 +71,7 @@ def demo_request() -> SolveRequest:
 
     return SolveRequest(
         start_date=start,
-        num_days=14,
+        num_days=31,
         patterns=patterns,
         staff=staff,
         requirements=requirements,
