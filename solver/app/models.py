@@ -15,7 +15,8 @@ class PatternIn(BaseModel):
     id: str
     label: str
     hours: float = Field(gt=0, description="休憩控除後の実労働時間")
-    is_late: bool = False
+    is_late: bool = False         # 旧: 遅番フラグ（balance 未指定時の後方互換に使用）
+    balance: bool | None = None   # 回数を平準化するか。None なら is_late を踏襲
     start: str | None = None      # "09:00" 表示・検証用（solver は hours を使用）
     end: str | None = None        # "18:00"
     break_min: int = 0            # 休憩(分)
@@ -58,7 +59,8 @@ class PairsIn(BaseModel):
 
 class WeightsIn(BaseModel):
     s1_weekend_range: int = 8
-    s2_late_range: int = 5
+    s2_late_range: int = 5           # 旧称（後方互換のため受理のみ）
+    s2_balance: int = 5              # 平準化対象パターンの偏り減点
     s3_busy_popular: int = 6
     s5_ng_soft: int = 10
     s5_caution: int = 4              # 注意ペア(中程度)

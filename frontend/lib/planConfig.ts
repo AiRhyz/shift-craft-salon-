@@ -7,7 +7,7 @@ export interface PatternConfig {
   start: string; // "09:00"
   end: string; // "18:00"
   break_min: number; // 休憩(分)
-  is_late: boolean;
+  balance: boolean; // 回数を平準化（担当回数の偏りを最小化）
 }
 
 export interface StaffConfig {
@@ -110,10 +110,10 @@ export function applyMonth(config: PlanConfig, ym: string): PlanConfig {
 }
 
 export const DEFAULT_PATTERNS: PatternConfig[] = [
-  { id: "early", label: "早番", start: "09:00", end: "18:00", break_min: 60, is_late: false },
-  { id: "late", label: "遅番", start: "12:00", end: "21:00", break_min: 60, is_late: true },
-  { id: "full", label: "通し", start: "09:00", end: "21:00", break_min: 60, is_late: false },
-  { id: "short", label: "時短", start: "10:00", end: "15:00", break_min: 0, is_late: false },
+  { id: "early", label: "早番", start: "09:00", end: "18:00", break_min: 60, balance: false },
+  { id: "late", label: "遅番", start: "12:00", end: "21:00", break_min: 60, balance: true },
+  { id: "full", label: "通し", start: "09:00", end: "21:00", break_min: 60, balance: false },
+  { id: "short", label: "時短", start: "10:00", end: "15:00", break_min: 0, balance: false },
 ];
 
 // ---------------------------------------------------------------- 既定値
@@ -206,7 +206,8 @@ export function buildSolveRequest(config: PlanConfig): Record<string, unknown> {
       id: p.id,
       label: `${p.label} ${p.start}-${p.end}`,
       hours: patternHours(p),
-      is_late: p.is_late,
+      is_late: p.balance, // 後方互換用（旧APIの遅番フラグ）
+      balance: p.balance,
       start: p.start,
       end: p.end,
       break_min: p.break_min,
@@ -261,10 +262,14 @@ export function loadConfig(): PlanConfig | null {
       unavailable_weekdays: s.unavailable_weekdays ?? [],
     }));
     // 旧形式パターン（start/end 無し）は既定パターンへ差し替え
-    cfg.patterns = (cfg.patterns ?? []).map((p) => {
-      if ((p as PatternConfig).start) return p as PatternConfig;
-      const def = DEFAULT_PATTERNS.find((dp) => dp.id === (p as { id: string }).id);
-      return def ?? DEFAULT_PATTERNS[0];
+    cfg.patterns = (cfg.patterns ?? []).map((raw) => {
+      const p = raw as PatternConfig & { is_late?: boolean };
+      if (!p.start) {
+        const def = DEFAULT_PATTERNS.find((dp) => dp.id === p.id);
+        return def ?? DEFAULT_PATTERNS[0];
+      }
+      // 旧フィールド is_late からの移行
+      return { ...p, balance: p.balance ?? p.is_late ?? false };
     });
     if (cfg.patterns.length === 0) cfg.patterns = DEFAULT_PATTERNS;
     return cfg;

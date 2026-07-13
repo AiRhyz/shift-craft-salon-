@@ -226,7 +226,6 @@ def _add_soft_terms(ctx: _Ctx, req: SolveRequest):
     model, x, y = ctx.model, ctx.x, ctx.y
     days, open_days, weekend = ctx.days, ctx.open_days, ctx.weekend
     pattern_min = {p.id: round(p.hours * 60) for p in req.patterns}
-    late_ids = {p.id for p in req.patterns if p.is_late}
     w = req.weights
     obj: list = []
 
@@ -252,13 +251,18 @@ def _add_soft_terms(ctx: _Ctx, req: SolveRequest):
             len(weekend), "wk")
         obj.append(-w.s1_weekend_range * rng)
 
-    # S2: 遅番回数の平準化
-    if late_ids and len(req.staff) > 1:
-        rng = count_range(
-            lambda s: sum(x[(s.id, d.isoformat(), p)] for d in open_days
-                          for p in late_ids if (s.id, d.isoformat(), p) in x),
-            len(open_days), "late")
-        obj.append(-w.s2_late_range * rng)
+    # S2(一般化): 「回数を平準化」フラグ付きパターンごとに担当回数の偏りを最小化
+    # balance 未指定の旧入力は is_late を踏襲（遅番のみ平準化）
+    balanced = [p for p in req.patterns
+                if (p.balance if p.balance is not None else p.is_late)]
+    if len(req.staff) > 1:
+        for bp in balanced:
+            rng = count_range(
+                lambda s, pid=bp.id: sum(
+                    x[(s.id, d.isoformat(), pid)] for d in open_days
+                    if (s.id, d.isoformat(), pid) in x),
+                len(open_days), f"bal_{bp.id}")
+            obj.append(-w.s2_balance * rng)
 
     # S3: 指名の多いスタッフを繁忙日（v1: 土日）へ優先配置
     for s in req.staff:

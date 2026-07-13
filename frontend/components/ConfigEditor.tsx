@@ -228,7 +228,7 @@ function PatternsEditor({ config, onChange }: Props) {
           start: config.store_open,
           end: config.store_close,
           break_min: 60,
-          is_late: false,
+          balance: false,
         },
       ],
     });
@@ -252,7 +252,7 @@ function PatternsEditor({ config, onChange }: Props) {
   return (
     <Section
       title="勤務パターン"
-      hint="開始・終了・休憩から実働時間を自動計算。営業時間の範囲外は警告します。「遅番扱い」にチェックしたパターンは遅番回数の平準化（特定スタッフへの偏り防止）の対象になります"
+      hint="開始・終了・休憩から実働時間を自動計算。営業時間の範囲外は警告します。「回数を平準化」にチェックしたパターンは担当回数がスタッフ間で偏らないよう最適化されます（負担の大きいシフトに設定。例: 遅番・通し）"
     >
       <div className="space-y-2">
         {config.patterns.map((p, i) => {
@@ -303,14 +303,14 @@ function PatternsEditor({ config, onChange }: Props) {
               </div>
               <label
                 className="inline-flex items-center gap-1 pb-1.5 text-xs text-slate-600"
-                title="チェックしたパターンは「遅番回数の平準化」(公平性スコア)の対象になり、特定スタッフへの偏りを避けるよう最適化されます"
+                title="チェックしたパターンは担当回数の偏り(公平性スコア)が最小化されます。遅番・通しなど負担の大きいシフトに設定してください"
               >
                 <input
                   type="checkbox"
-                  checked={p.is_late}
-                  onChange={(e) => update(i, { is_late: e.target.checked })}
+                  checked={p.balance}
+                  onChange={(e) => update(i, { balance: e.target.checked })}
                 />
-                遅番扱い
+                回数を平準化
               </label>
               <span className="pb-1.5 text-xs font-medium text-slate-600">
                 実働 {patternHours(p)}h
