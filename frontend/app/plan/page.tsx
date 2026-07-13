@@ -9,8 +9,14 @@ import { ShiftGrid } from "@/components/ShiftGrid";
 import { saveConfirmed } from "@/lib/confirmed";
 import { buildCsv } from "@/lib/exportCsv";
 import type { PlanConfig } from "@/lib/planConfig";
-import { defaultConfig, loadConfig, saveConfig } from "@/lib/planConfig";
+import {
+  buildSolveRequest,
+  defaultConfig,
+  loadConfig,
+  saveConfig,
+} from "@/lib/planConfig";
 import type { Schedule } from "@/lib/types";
+import { recomputeAndValidate } from "@/lib/validate";
 import { useEffect, useRef, useState } from "react";
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -28,6 +34,8 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [violations, setViolations] = useState<string[]>([]);
   const hydrated = useRef(false);
 
   // 初回に localStorage から復元
@@ -49,13 +57,15 @@ export default function PlanPage() {
       const res = await fetch("/api/solve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(buildSolveRequest(config)),
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         throw new Error(`入力エラー(${res.status}): ${detail.slice(0, 300)}`);
       }
       setSchedule((await res.json()) as Schedule);
+      setViolations([]);
+      setEditMode(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -68,6 +78,29 @@ export default function PlanPage() {
     setSchedule(null);
     setError(null);
     setNotice(null);
+  };
+
+  // 手動調整: セルの勤務パターンを変更 → 集計・不足・違反を即時再計算
+  const handleCellChange = (
+    staffId: string,
+    date: string,
+    patternId: string | null,
+  ) => {
+    if (!schedule) return;
+    const edited: Schedule = {
+      ...schedule,
+      staff: schedule.staff.map((s) =>
+        s.id === staffId
+          ? { ...s, assignments: { ...s.assignments, [date]: patternId } }
+          : s,
+      ),
+    };
+    const { schedule: recomputed, violations: v } = recomputeAndValidate(
+      edited,
+      config,
+    );
+    setSchedule(recomputed);
+    setViolations(v);
   };
 
   // 生成結果を確定し「シフト表」タブに反映する
@@ -221,6 +254,18 @@ export default function PlanPage() {
                   </span>
                 )}
                 <span className="ml-auto flex gap-2">
+                  {!isSample && (
+                    <button
+                      onClick={() => setEditMode(!editMode)}
+                      className={`rounded-md border px-3 py-1 text-xs font-medium ${
+                        editMode
+                          ? "border-brand bg-brand text-white"
+                          : "border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                      }`}
+                    >
+                      {editMode ? "✎ 編集中(クリックで終了)" : "✎ 手動調整"}
+                    </button>
+                  )}
                   <button
                     onClick={exportFile}
                     className="rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
@@ -237,7 +282,27 @@ export default function PlanPage() {
                   )}
                 </span>
               </div>
-              <ShiftGrid schedule={schedule} />
+              {editMode && (
+                <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
+                  手動調整モード: セルをクリックして勤務パターンを変更できます。
+                  変更すると集計・不足人数・制約違反を即時に再計算します。
+                </div>
+              )}
+              {violations.length > 0 && (
+                <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  <p className="font-semibold">⚠ 制約違反があります:</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs">
+                    {violations.map((v, i) => (
+                      <li key={i}>{v}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <ShiftGrid
+                schedule={schedule}
+                editable={editMode}
+                onCellChange={handleCellChange}
+              />
             </>
           )}
         </section>

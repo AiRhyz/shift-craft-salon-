@@ -6,6 +6,9 @@ export interface SchedulePattern {
   label: string;
   hours: number;
   is_late: boolean;
+  start?: string | null;
+  end?: string | null;
+  break_min?: number;
 }
 
 export interface ScheduleDay {
@@ -32,6 +35,7 @@ export interface ScheduleMeta {
   objective: number | null;
   solve_time_s: number;
   ng_soft_violations: number;
+  caution_violations?: number;
   recommend_together: number;
   want_met: number;
   estimated_cost_yen?: number | null; // 概算人件費（時給設定時のみ）

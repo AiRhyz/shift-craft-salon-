@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function Nav({ current }: { current: "home" | "plan" }) {
+export function Nav({ current }: { current: "home" | "plan" | "submit" }) {
   const tab = (href: string, key: string, label: string) => (
     <Link
       href={href}
@@ -14,12 +14,13 @@ export function Nav({ current }: { current: "home" | "plan" }) {
     </Link>
   );
   return (
-    <nav className="mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
+    <nav className="no-print mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
       <span className="mr-2 text-sm font-bold text-slate-800">
         shift-craft-salon
       </span>
       {tab("/", "home", "シフト表")}
       {tab("/plan", "plan", "シフト作成")}
+      {tab("/submit", "submit", "希望提出")}
     </nav>
   );
 }

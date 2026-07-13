@@ -1,17 +1,36 @@
 import type { Schedule } from "@/lib/types";
 import { RANK_LABEL, WEEKDAY_JP } from "@/lib/schedule";
 
-// 勤務パターン id -> 短縮ラベルと色
-const PATTERN_STYLE: Record<string, { label: string; cls: string }> = {
-  early: { label: "早", cls: "bg-sky-100 text-sky-800" },
-  late: { label: "遅", cls: "bg-indigo-100 text-indigo-800" },
-  full: { label: "通", cls: "bg-amber-100 text-amber-800" },
-  short: { label: "時", cls: "bg-emerald-100 text-emerald-800" },
-};
+// パターン数が可変になったため、色は並び順でパレットから割当てる
+const PALETTE = [
+  "bg-sky-100 text-sky-800",
+  "bg-indigo-100 text-indigo-800",
+  "bg-amber-100 text-amber-800",
+  "bg-emerald-100 text-emerald-800",
+  "bg-purple-100 text-purple-800",
+  "bg-pink-100 text-pink-800",
+  "bg-teal-100 text-teal-800",
+  "bg-lime-100 text-lime-800",
+];
 
-export function ShiftGrid({ schedule }: { schedule: Schedule }) {
+function shortLabel(label: string): string {
+  return label ? label[0] : "?";
+}
+
+export function ShiftGrid({
+  schedule,
+  editable = false,
+  onCellChange,
+}: {
+  schedule: Schedule;
+  editable?: boolean;
+  onCellChange?: (staffId: string, date: string, patternId: string | null) => void;
+}) {
   const { days, staff, patterns } = schedule;
   const hasShortage = days.some((d) => (d.shortage ?? 0) > 0);
+  const styleOf = new Map(
+    patterns.map((p, i) => [p.id, PALETTE[i % PALETTE.length]]),
+  );
 
   return (
     <div className="space-y-3">
@@ -49,17 +68,42 @@ export function ShiftGrid({ schedule }: { schedule: Schedule }) {
                 </td>
                 {days.map((d) => {
                   const p = s.assignments[d.date];
-                  const style = p ? PATTERN_STYLE[p] : null;
+                  const pat = p ? patterns.find((pp) => pp.id === p) : null;
+                  if (editable && onCellChange) {
+                    return (
+                      <td key={d.date} className="px-0.5 py-1 text-center">
+                        <select
+                          value={p ?? ""}
+                          onChange={(e) =>
+                            onCellChange(s.id, d.date, e.target.value || null)
+                          }
+                          title={pat?.label ?? "休"}
+                          className={`h-7 w-9 cursor-pointer appearance-none rounded-md border-0 text-center text-xs font-semibold focus:ring-2 focus:ring-brand ${
+                            p
+                              ? (styleOf.get(p) ?? "bg-slate-100")
+                              : "bg-white text-slate-300"
+                          }`}
+                        >
+                          <option value="">・</option>
+                          {patterns.map((pp) => (
+                            <option key={pp.id} value={pp.id}>
+                              {shortLabel(pp.label)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    );
+                  }
                   return (
                     <td key={d.date} className="px-1 py-1 text-center">
-                      {style ? (
+                      {p ? (
                         <span
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold ${style.cls}`}
-                          title={
-                            patterns.find((pp) => pp.id === p)?.label ?? p ?? ""
-                          }
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold ${
+                            styleOf.get(p) ?? "bg-slate-100"
+                          }`}
+                          title={pat?.label ?? p}
                         >
-                          {style.label}
+                          {shortLabel(pat?.label ?? p)}
                         </span>
                       ) : (
                         <span className="text-slate-300">・</span>
@@ -104,21 +148,18 @@ export function ShiftGrid({ schedule }: { schedule: Schedule }) {
 
       {/* 凡例 */}
       <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-        {patterns.map((p) => {
-          const style = PATTERN_STYLE[p.id];
-          return (
-            <span key={p.id} className="inline-flex items-center gap-1.5">
-              <span
-                className={`inline-flex h-5 w-5 items-center justify-center rounded ${
-                  style?.cls ?? "bg-slate-100"
-                } text-[10px] font-semibold`}
-              >
-                {style?.label ?? "?"}
-              </span>
-              {p.label}
+        {patterns.map((p) => (
+          <span key={p.id} className="inline-flex items-center gap-1.5">
+            <span
+              className={`inline-flex h-5 w-5 items-center justify-center rounded ${
+                styleOf.get(p.id) ?? "bg-slate-100"
+              } text-[10px] font-semibold`}
+            >
+              {shortLabel(p.label)}
             </span>
-          );
-        })}
+            {p.label}（{p.hours}h）
+          </span>
+        ))}
         <span className="inline-flex items-center gap-1.5">
           <span className="text-slate-300">・</span>休
         </span>

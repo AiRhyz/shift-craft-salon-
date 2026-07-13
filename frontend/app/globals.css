@@ -13,3 +13,16 @@ body {
   font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", Meiryo, sans-serif;
 }
+
+/* 印刷（PDF保存）: ナビ・ボタン類を隠し、シフト表を紙に収める */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+}

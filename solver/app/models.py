@@ -16,6 +16,9 @@ class PatternIn(BaseModel):
     label: str
     hours: float = Field(gt=0, description="休憩控除後の実労働時間")
     is_late: bool = False
+    start: str | None = None      # "09:00" 表示・検証用（solver は hours を使用）
+    end: str | None = None        # "18:00"
+    break_min: int = 0            # 休憩(分)
 
 
 class StaffIn(BaseModel):
@@ -29,17 +32,27 @@ class StaffIn(BaseModel):
     popular: int = 0                  # 指名の多さ 0..3（S3 用）
     hourly_wage: float = 0            # 時給(円)。S7 人件費・概算コスト用
     avail_patterns: list[str] | None = None  # None = 全パターン可
+    unavailable_weekdays: list[int] = Field(default_factory=list)  # 勤務不可曜日(0=月..6=日)
 
 
-class RequirementsIn(BaseModel):
-    """各営業日に必要な最低人数（v1 は全営業日一律）。"""
+class DayRequirements(BaseModel):
+    """1日あたりの最低必要人数。"""
     by_rank: dict[str, int] = Field(default_factory=dict)
     by_skill: dict[str, int] = Field(default_factory=dict)
+
+
+class RequirementsIn(DayRequirements):
+    """基本の必要人数＋曜日別の上書き（例: 土曜はスタイリスト3名）。"""
+    weekday_overrides: dict[int, DayRequirements] = Field(default_factory=dict)
+
+    def for_weekday(self, wd: int) -> DayRequirements:
+        return self.weekday_overrides.get(wd) or self
 
 
 class PairsIn(BaseModel):
     ng_soft: list[tuple[str, str]] = Field(default_factory=list)
     ng_hard: list[tuple[str, str]] = Field(default_factory=list)
+    caution: list[tuple[str, str]] = Field(default_factory=list)   # 注意ペア(中程度減点)
     recommend: list[tuple[str, str]] = Field(default_factory=list)
 
 
@@ -48,6 +61,7 @@ class WeightsIn(BaseModel):
     s2_late_range: int = 5
     s3_busy_popular: int = 6
     s5_ng_soft: int = 10
+    s5_caution: int = 4              # 注意ペア(中程度)
     s4_recommend: int = 4
     s6_want: int = 3
     s7_over_budget: int = 2  # 予算超過 千円あたりの減点
@@ -83,6 +97,9 @@ class PatternOut(BaseModel):
     label: str
     hours: float
     is_late: bool
+    start: str | None = None
+    end: str | None = None
+    break_min: int = 0
 
 
 class DayOut(BaseModel):
@@ -109,6 +126,7 @@ class MetaOut(BaseModel):
     objective: float | None
     solve_time_s: float
     ng_soft_violations: int
+    caution_violations: int = 0
     recommend_together: int
     want_met: int
     estimated_cost_yen: int | None = None   # 概算人件費（時給設定時のみ）

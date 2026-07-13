@@ -101,14 +101,22 @@ export default function Home() {
       ) : (
         <>
           {confirmed ? (
-            <div className="mb-5 flex flex-wrap items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <div className="no-print mb-5 flex flex-wrap items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <span>✓ {confirmedAt} に確定されたシフトです</span>
-              <button
-                onClick={unconfirm}
-                className="ml-auto rounded-md border border-emerald-300 bg-white px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
-              >
-                確定を取り消す
-              </button>
+              <span className="ml-auto flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="rounded-md border border-emerald-300 bg-white px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                >
+                  🖨 印刷 / PDF保存
+                </button>
+                <button
+                  onClick={unconfirm}
+                  className="rounded-md border border-emerald-300 bg-white px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                >
+                  確定を取り消す
+                </button>
+              </span>
             </div>
           ) : (
             <div className="mb-5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">

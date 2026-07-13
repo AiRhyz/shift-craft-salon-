@@ -87,7 +87,10 @@ def _build(req: SolveRequest, mode: str) -> _Ctx:
     # --- 決定変数 x[s,d,p]（営業日のみ）/ H0': 勤務可能パターンのみ ---
     for s in req.staff:
         av = set(s.avail_patterns) if s.avail_patterns is not None else set(pattern_ids)
+        na_wd = set(s.unavailable_weekdays)
         for d in open_days:
+            if d.weekday() in na_wd:      # 勤務不可曜日（H0' 相当）
+                continue
             for p in pattern_ids:
                 if p in av:
                     ctx.x[(s.id, d.isoformat(), p)] = model.NewBoolVar(
@@ -102,10 +105,11 @@ def _build(req: SolveRequest, mode: str) -> _Ctx:
             model.Add(yv == sum(terms))
             ctx.y[(s.id, d.isoformat())] = yv
 
-    # H1 / H1': 必要人数
+    # H1 / H1': 必要人数（曜日別上書きに対応）
     for d in open_days:
         diso = d.isoformat()
-        for rank, need in req.requirements.by_rank.items():
+        day_req = req.requirements.for_weekday(d.weekday())
+        for rank, need in day_req.by_rank.items():
             if need <= 0:
                 continue
             total = sum(ctx.y[(s.id, diso)] for s in req.staff if s.rank == rank)
@@ -117,7 +121,7 @@ def _build(req: SolveRequest, mode: str) -> _Ctx:
                 model.Add(total + sv >= need)
             else:
                 model.Add(total >= need)
-        for skill, need in req.requirements.by_skill.items():
+        for skill, need in day_req.by_skill.items():
             if need <= 0:
                 continue
             total = sum(ctx.y[(s.id, diso)] for s in req.staff if skill in s.skills)
@@ -279,6 +283,14 @@ def _add_soft_terms(ctx: _Ctx, req: SolveRequest):
                 z = pair_and(y[ka], y[kb], f"ng_{a}_{b}_{d.isoformat()}")
                 obj.append(-w.s5_ng_soft * z)
                 ng_zs.append(z)
+    caution_zs = []
+    for a, b in req.pairs.caution:
+        for d in days:
+            ka, kb = (a, d.isoformat()), (b, d.isoformat())
+            if ka in y and kb in y:
+                z = pair_and(y[ka], y[kb], f"ca_{a}_{b}_{d.isoformat()}")
+                obj.append(-w.s5_caution * z)
+                caution_zs.append(z)
     rec_zs = []
     for a, b in req.pairs.recommend:
         for d in days:
@@ -312,14 +324,14 @@ def _add_soft_terms(ctx: _Ctx, req: SolveRequest):
         model.AddDivisionEquality(over_k, over, 1000)
         obj.append(-w.s7_over_budget * over_k)
 
-    return obj, ng_zs, rec_zs, want_lits
+    return obj, ng_zs, caution_zs, rec_zs, want_lits
 
 
 def _run(req: SolveRequest, mode: str) -> Schedule:
     """指定モードで求解し Schedule を返す。"""
     ctx = _build(req, mode)
     model = ctx.model
-    obj, ng_zs, rec_zs, want_lits = _add_soft_terms(ctx, req)
+    obj, ng_zs, caution_zs, rec_zs, want_lits = _add_soft_terms(ctx, req)
 
     # besteffort: 不足人日の最小化を最優先（大きな減点で支配させる）
     if mode == "besteffort" and ctx.slacks:
@@ -390,6 +402,7 @@ def _run(req: SolveRequest, mode: str) -> Schedule:
         "objective": solver.ObjectiveValue() if feasible and obj else None,
         "solve_time_s": round(solver.WallTime(), 4),
         "ng_soft_violations": sum(solver.Value(z) for z in ng_zs) if feasible else 0,
+        "caution_violations": sum(solver.Value(z) for z in caution_zs) if feasible else 0,
         "recommend_together": sum(solver.Value(z) for z in rec_zs) if feasible else 0,
         "want_met": sum(solver.Value(v) for v in want_lits) if feasible else 0,
         "estimated_cost_yen": round(total_cost) if (feasible and has_wage) else None,
@@ -403,7 +416,8 @@ def _run(req: SolveRequest, mode: str) -> Schedule:
         "shortage_detail": detail_by_day.get(d.isoformat(), []),
     } for d in ctx.days]
     patterns_out = [{"id": p.id, "label": p.label, "hours": p.hours,
-                     "is_late": p.is_late} for p in req.patterns]
+                     "is_late": p.is_late, "start": p.start, "end": p.end,
+                     "break_min": p.break_min} for p in req.patterns]
 
     return Schedule(meta=meta, patterns=patterns_out, days=days_out, staff=staff_out)
 
