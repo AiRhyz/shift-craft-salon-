@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "skill_name": "manager-ai",
+  "recorded_on": "2026-10-14",
+  "source_repository": "AiRhyz/AiRhyz_business",
+  "source_path": ".ai/manager-ai-starter/manager-ai/SKILL.md",
+  "source_url": "https://github.com/AiRhyz/AiRhyz_business/blob/main/.ai/manager-ai-starter/manager-ai/SKILL.md",
+  "source_zip_sha256": "312efe48eae81a0022c9b4ee9bad6574c103bad629e1832d79b74b82f78a9a48",
+  "skill_sha256": "9d0b7af1cb696c3e1d492c6ca4996d931a19ac96472d0137ff85ee73d9d0e351",
+  "installed_paths": [
+    ".agents/skills/manager-ai/SKILL.md",
+    ".claude/skills/manager-ai/SKILL.md"
+  ],
+  "entry_files": [
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "verification": "添付のスキル本文と完全同一バイト。既存の起動指示は保全して追記。"
+}
