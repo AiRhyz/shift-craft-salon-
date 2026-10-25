@@ -83,3 +83,11 @@ shift-craft-salon/
 - ✅ v3.0: 需要予測からの必要人数提案・多店舗管理(店舗切替/ヘルプ候補)・給与CSV
 - ⬜ 次期: Supabase 永続化の実装（スキーマ・手順は準備済み。docs/integrations.md）、
   予約システムAPIの直接連動
+
+## Node.js セキュリティ更新
+
+フロントエンド（`frontend/`）の Node.js は 22.23.4 以降の 22.x を使います。`cd frontend` の後、`nvm install && nvm use` で `.nvmrc` の版を選び、`node --version` を確認してから依存関係を入れてください。
+
+Vercel では Node.js 22.x のパッチ版はサービス側が管理します。Node.js 20 を使っている既存環境は 22.x へ変更し、承認後に再デプロイする必要があります。この PR では本番への反映・設定変更・実稼働版の確認は行いません。反映担当者はビルドログの Node.js 版と、稼働関数の内部ログで `process.version` が v22.23.4 以上の 22.x になったことを確認してください。確認のための公開エンドポイントは追加しません。
+
+[Node.js 公式の修正情報](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) / [Vercel の対応案内](https://vercel.com/ja/kb/bulletin/node-js-security-advisory)
